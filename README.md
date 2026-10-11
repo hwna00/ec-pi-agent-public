@@ -149,6 +149,7 @@ Pi의 브라우저 관리 계층에서 Chrome의 CDP(원격 디버깅) 연결을
 | `pg_zeus` | PostgreSQL 스키마·데이터 조회 |
 | `DebugMCP` | 웹·외부 시스템 조사 |
 | Chrome DevTools·Playwright | ERP 브라우저 연결·제어와 업무 자료 수집 |
+| [LangSmith](https://github.com/langchain-ai/langsmith-mcp-server) | 에이전트 실행 트레이스 조회·분석 |
 
 ## Skills
 
