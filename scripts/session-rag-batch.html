@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>세션 선택 · RAG 적재</title>
+<style>
+  :root{color-scheme:light dark;--bg:#111318;--panel:#1b1e26;--text:#edf0f6;--muted:#a7afbf;--line:#343a47;--accent:#b5cbff;--error:#ffaba7}
+  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.6}
+  main{max-width:1160px;margin:auto;padding:32px 24px 100px}h1{font-size:26px;margin:0 0 8px}p{margin:8px 0;color:var(--muted)}
+  .toolbar{position:sticky;top:0;z-index:2;background:var(--bg);padding:16px 0;border-bottom:1px solid var(--line)}
+  .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.spread{justify-content:space-between}button,input,select{font:inherit}
+  input[type=search]{flex:1;min-width:220px}input[type=search],select{padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--text)}
+  input[type=checkbox]{width:20px;height:20px;accent-color:var(--accent);flex:none;cursor:pointer}
+  button{padding:8px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--text);cursor:pointer}
+  button.primary{background:var(--accent);color:#182343;border:0;font-weight:650}button:disabled{opacity:.4;cursor:default}
+  .count{font-weight:650;color:var(--accent)}#notice{white-space:pre-wrap;color:var(--accent);min-height:24px}#notice.error{color:var(--error)}
+  .session{display:flex;gap:14px;padding:18px 0;border-bottom:1px solid var(--line);align-items:flex-start}.session.checked{background:#b5cbff08}
+  .session input{margin-top:5px}.session .info{flex:1;min-width:0}.title{display:block;font-weight:600;line-height:1.5;cursor:pointer;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .meta,.path{color:var(--muted);font-size:13px}.path{overflow-wrap:anywhere}.error{color:var(--error)}
+  #job{padding:16px;background:var(--panel);border-radius:10px;margin:18px 0;display:none}progress{width:100%;height:12px;accent-color:var(--accent)}
+  #results{padding-left:22px;max-height:280px;overflow:auto;font-size:13px}#results li{margin:8px 0;overflow-wrap:anywhere}
+  dialog{width:min(900px,94vw);max-height:88vh;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--text);padding:24px}
+  dialog::backdrop{background:#0009}.dialog-head{position:sticky;top:-24px;background:var(--bg);padding:8px 0;z-index:1}.dialog-head h2{font-size:18px;max-width:75%;margin:0}
+  .message{margin:20px 0;padding:16px;background:var(--panel);border-radius:8px}.message pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;margin:8px 0}.role{color:var(--accent);font-weight:600}
+  .footer{position:fixed;bottom:0;left:0;right:0;border-top:1px solid var(--line);background:var(--bg);padding:14px 24px;z-index:3}.footer .row{max-width:1112px;margin:auto}
+  @media(max-width:600px){main{padding:20px 16px 150px}.footer{padding:12px 16px}.session{gap:10px}.session button{font-size:13px;padding:6px 8px}}
+</style>
+<main>
+  <h1>적재할 대화 기록 선택</h1>
+  <p>체크한 세션만 순서대로 요약 → 임베딩 → MongoDB에 적재합니다. 원본 기록은 보존합니다.</p>
+  <div class="toolbar">
+    <div class="row">
+      <input id="search" type="search" placeholder="제목 · 파일 · 세션 ID로 검색" aria-label="세션 검색">
+      <select id="scope" aria-label="분기 적재 범위">
+        <option value="latest">각 세션의 최신 분기</option>
+        <option value="all">선택한 세션의 모든 분기</option>
+      </select>
+      <button id="refresh">목록 새로고침</button>
+    </div>
+    <p id="scope-note">최신 분기의 사용자 질문과 완료된 답변을 처리합니다. 다른 분기도 포함하려면 ‘모든 분기’를 선택하세요.</p>
+    <div class="row spread">
+      <span id="counts" class="count">목록을 불러오는 중</span>
+      <div class="row"><button id="select-visible">보이는 목록 선택</button><button id="clear">선택 해제</button></div>
+    </div>
+  </div>
+  <p id="notice" role="status" aria-live="polite"></p>
+  <section id="job" aria-label="처리 진행 상태">
+    <div class="row spread"><strong id="job-title"></strong><button id="cancel">처리 취소</button></div>
+    <progress id="progress" value="0" max="1"></progress>
+    <p id="job-stage"></p><p id="job-path"></p><ol id="results"></ol><p id="report"></p>
+  </section>
+  <section id="list" aria-label="세션 체크박스 목록"></section>
+</main>
+<div class="footer"><div class="row spread">
+  <span id="selection-count" class="count">선택 0개</span>
+  <div class="row"><button id="save" disabled>선택 저장</button><button id="run" class="primary" disabled>선택한 세션 요약·적재</button></div>
+</div></div>
+<dialog id="preview"><div class="dialog-head row spread"><h2 id="preview-title"></h2><button id="close-preview">닫기</button></div><p id="preview-note"></p><div id="messages"></div></dialog>
+<script>
+  const token=new URLSearchParams(location.search).get('token');
+  const $=id=>document.getElementById(id);
+  let catalog=[],selected=new Set(),state={status:'idle'},visible=[];
+  async function api(path,body){
+    const response=await fetch('/api/'+path,{method:body===undefined?'GET':'POST',headers:{'X-Rag-Token':token,'Content-Type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)})});
+    const data=await response.json();if(!response.ok)throw new Error(data.error||'요청을 처리하지 못했습니다.');return data;
+  }
+  function notice(text,error=false){$('notice').textContent=text;$('notice').className=error?'error':'';}
+  function selectable(item){return !item.error&&($('scope').value==='all'||item.turns>0);}
+  function payload(){return {ids:[...selected],scope:$('scope').value};}
+  function counts(){
+    const count=selected.size,branches=catalog.filter(item=>selected.has(item.id)).reduce((sum,item)=>sum+($('scope').value==='all'?item.branches.length:1),0);
+    $('counts').textContent='전체 '+catalog.length+'개 · 표시 '+visible.length+'개 · 읽을 수 없는 기록 '+catalog.filter(item=>item.error).length+'개';
+    $('selection-count').textContent='선택 '+count+'개 · 처리할 분기 '+branches+'개';
+    const busy=state.status==='running';
+    for(const id of ['save','run'])$(id).disabled=!count||busy;
+    for(const id of ['refresh','scope','clear','select-visible'])$(id).disabled=busy;
+    for(const input of document.querySelectorAll('.session input'))input.disabled=busy||!selectable(catalog.find(item=>item.id===input.dataset.id));
+  }
+  function render(){
+    const query=$('search').value.trim().toLocaleLowerCase();
+    visible=catalog.filter(item=>(item.title+' '+item.path+' '+(item.sessionId||'')).toLocaleLowerCase().includes(query));
+    const list=$('list');list.replaceChildren();
+    for(const item of visible){
+      const row=document.createElement('article');row.className='session'+(selected.has(item.id)?' checked':'');
+      const input=document.createElement('input');input.type='checkbox';input.dataset.id=item.id;input.id='session-'+item.id;input.checked=selected.has(item.id);
+      input.addEventListener('change',()=>{input.checked?selected.add(item.id):selected.delete(item.id);row.classList.toggle('checked',input.checked);counts();});
+      const info=document.createElement('div');info.className='info';
+      const label=document.createElement('label');label.htmlFor=input.id;label.className='title';label.textContent=item.title;
+      const meta=document.createElement('div');meta.className='meta';
+      const date=item.createdAt?new Date(item.createdAt).toLocaleString('ko-KR'):'';
+      meta.textContent=date+' · 최신 분기 '+item.turns+'턴 · 대화 분기 '+item.branches.length+'개';
+      const path=document.createElement('div');path.className='path';path.textContent=item.path;
+      info.append(label,meta,path);
+      if(item.error){const error=document.createElement('div');error.className='error';error.textContent=item.error;info.append(error);}
+      const preview=document.createElement('button');preview.textContent='대화 보기';preview.disabled=!!item.error;preview.addEventListener('click',()=>showPreview(item));
+      row.append(input,info,preview);list.append(row);
+    }
+    if(!visible.length){const empty=document.createElement('p');empty.textContent='검색 조건에 맞는 세션이 없습니다.';list.append(empty);}
+    counts();
+  }
+  async function showPreview(item){
+    $('preview-title').textContent='대화 기록';$('preview-note').textContent='불러오는 중';$('messages').replaceChildren();$('preview').showModal();
+    try{
+      const data=await api('preview?id='+encodeURIComponent(item.id));
+      $('preview-title').textContent=data.title.slice(0,140);$('preview-note').textContent='파일에 저장된 사용자·assistant 텍스트 전체입니다. 분기별 기록이 함께 보이며, 실패·중단된 답변은 실제 요약에서 제외됩니다. '+data.path;
+      for(const item of data.messages){
+        const box=document.createElement('section');box.className='message';
+        const role=document.createElement('div');role.className='role';role.textContent=(item.role==='user'?'사용자':'assistant')+(item.stopReason==='error'||item.stopReason==='aborted'?' · 미완료':'');
+        const text=document.createElement('pre');text.textContent=item.text;box.append(role,text);$('messages').append(box);
+      }
+    }catch(error){$('preview-note').textContent=error.message;}
+  }
+  function showState(next){
+    state=next;const busy=state.status==='running';counts();
+    if(state.status==='idle')return;
+    $('job').style.display='block';$('cancel').disabled=!busy;
+    const labels={running:'처리 중',completed:'처리 완료',partial:'일부 실패',failed:'처리 실패',cancelled:'처리 취소'};
+    $('job-title').textContent=(labels[state.status]||state.status)+' · '+state.results.length+' / '+state.total+'분기';
+    $('progress').max=state.total||1;$('progress').value=busy?state.completed:state.results.length;
+    $('job-stage').textContent=state.error||state.stage||'';$('job-path').textContent=state.path||'';
+    $('results').replaceChildren();
+    for(const result of state.results){const line=document.createElement('li');line.textContent=(result.status==='completed'?'완료':'실패')+' · '+result.path+(result.error?' · '+result.stage+': '+result.error:' · '+result.uploadStatus);if(result.status!=='completed')line.className='error';$('results').append(line);}
+    $('report').textContent=state.reportPath?'실행 기록: '+state.reportPath:'';
+  }
+  async function load(refresh=false){
+    const data=await api(refresh?'refresh':'catalog',refresh?{}:undefined);catalog=data.catalog;
+    if(!refresh&&data.selection){selected=new Set(data.selection.sessions.map(item=>item.id));$('scope').value=data.selection.scope;}
+    selected=new Set([...selected].filter(id=>catalog.some(item=>item.id===id&&selectable(item))));
+    state=data.state;render();showState(state);scopeNote();
+  }
+  function scopeNote(){$('scope-note').textContent=$('scope').value==='all'?'각 세션의 모든 마지막 분기를 각각 처리합니다. 공통 대화가 분기별 요약에 포함될 수 있습니다.':'최신 분기의 사용자 질문과 완료된 답변을 처리합니다. 다른 분기도 포함하려면 ‘모든 분기’를 선택하세요.';}
+  $('search').addEventListener('input',render);
+  $('scope').addEventListener('change',()=>{selected=new Set([...selected].filter(id=>selectable(catalog.find(item=>item.id===id))));scopeNote();render();});
+  $('select-visible').addEventListener('click',()=>{for(const item of visible)if(selectable(item))selected.add(item.id);render();});
+  $('clear').addEventListener('click',()=>{selected.clear();render();});
+  $('refresh').addEventListener('click',()=>load(true).then(()=>notice('목록을 새로 읽었습니다.')).catch(error=>notice(error.message,true)));
+  $('save').addEventListener('click',()=>api('selection',payload()).then(data=>notice('선택 '+data.selected+'개를 저장했습니다.\n'+data.selectionPath)).catch(error=>notice(error.message,true)));
+  $('run').addEventListener('click',async()=>{try{$('run').disabled=true;await api('run',payload());showState(await api('state'));notice('선택한 기록의 처리를 시작했습니다. 이 페이지를 닫아도 서버가 실행 중이면 처리가 계속됩니다.');}catch(error){notice(error.message,true);counts();}});
+  $('cancel').addEventListener('click',()=>api('cancel',{}).then(()=>notice('취소를 요청했습니다. 완료된 결과는 보존됩니다.')).catch(error=>notice(error.message,true)));
+  $('close-preview').addEventListener('click',()=>$('preview').close());
+  setInterval(async()=>{if(state.status==='running'){try{showState(await api('state'));}catch(error){notice('진행 상태를 읽지 못했습니다. 서버가 종료됐는지 확인하세요. '+error.message,true);}}},1000);
+  load().catch(error=>notice(error.message,true));
+</script>
+</html>

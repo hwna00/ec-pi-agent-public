@@ -1,0 +1,30 @@
+{
+  "name": "pi-session-rag",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Export the active Pi branch as Q&A Markdown, embed it with Workers AI BGE-M3, and upload to MongoDB when configured.",
+  "type": "module",
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "scripts": {
+    "test": "node --experimental-strip-types --import ./tests/register-mock.mjs --test tests/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.19",
+    "typescript": "5.8.3"
+  },
+  "dependencies": {
+    "@huggingface/tokenizers": "0.2.0",
+    "mongodb": "7.7.0"
+  }
+}

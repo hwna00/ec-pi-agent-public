@@ -1,0 +1,19 @@
+{
+  "name": "pi-ec-context-runtime",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/unit.test.mjs tests/browser-registry.test.mjs",
+    "test:mcp": "node tests/mcp-replay.mjs",
+    "test:browser": "node --test tests/separation-integration.test.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.31.0",
+    "@playwright/mcp": "0.0.82",
+    "@sinclair/typebox": "0.34.41",
+    "chrome-devtools-mcp": "1.10.1",
+    "puppeteer-core": "25.11.0",
+    "zod": "4.4.3"
+  }
+}

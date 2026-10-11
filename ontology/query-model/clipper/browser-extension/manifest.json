@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "Pi Ontology Clipper",
+  "version": "0.1.0",
+  "description": "Capture Ecount board popups into the project-local query-model ontology sources.",
+  "action": {
+    "default_title": "Capture board into Pi ontology"
+  },
+  "permissions": [
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1:7777/*",
+    "http://localhost:7777/*",
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content-script.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}

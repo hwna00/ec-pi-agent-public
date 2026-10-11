@@ -1,0 +1,92 @@
+# Exclusions for automated public export.
+
+# Runtime configuration and service connections
+mcp.json
+settings.json
+ec-context.json
+ontology-clipper.json
+langsmith.json
+auth.json
+.env
+.env.*
+!.env.example
+.npmrc
+.pypirc
+
+# Credentials, private keys, and browser login state
+.eccp/
+credential
+credentials.json
+cookies*.json
+storage-state*.json
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa
+id_ed25519
+
+# Local runtime and work data, including nested copies
+.local/
+.context/
+context/
+work/
+sessions/
+rag-summaries/
+rag-batch/
+memory/
+
+# Internal evidence and work records
+/reports/
+/investigations/
+/queue/
+/ontology/query-model/sources/
+/ontology/query-model/graph/
+/ontology/query-model/status/
+/external_package/
+/bank-*.json
+/tests/*-logs/
+/tests/tp*-baseline.json
+/tests/tp*-validation.json
+
+# Files with personal machine paths
+/skills/eccp/
+/tests/pi-mcp-child-diagnostic.cjs
+
+# Dependencies and generated output
+node_modules/
+/git/
+/npm/
+__pycache__/
+*.pyc
+*.log
+*.vsix
+.DS_Store
++# Company patches and patch generators
+patches/
+*.patch
+/scripts/tp*
+
+# Internal database query skills
+/skills/query-*/
+
+# Test code, fixtures, runners, and validation artifacts
+test/
+tests/
+__tests__/
+test-results/
+coverage/
+validation/
+*.test.*
+*.spec.*
+TEST-REPORT.md
+VALIDATION.md
+**/scripts/test-*
+**/scripts/test_*
+/check-bank-types.*
+/verify-bank-bundle.*
+
+# Branch management scripts and their entry points
+/scripts/*branch*
+/skills/git-skills/
+/extensions/gco.*

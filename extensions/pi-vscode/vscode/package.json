@@ -1,0 +1,35 @@
+{
+  "name": "pi-vscode-debug",
+  "displayName": "Pi VS Code Debug Console",
+  "description": "Read debug console output and control compound debug runs through a local authenticated bridge.",
+  "version": "0.1.6",
+  "type": "module",
+  "publisher": "local-pi",
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "extensionKind": [
+    "ui"
+  ],
+  "activationEvents": [
+    "onDebug",
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.cjs",
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false
+    }
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "pi-vscode.copyConnection",
+        "title": "Pi VS Code: Copy Connection Info"
+      }
+    ]
+  }
+}

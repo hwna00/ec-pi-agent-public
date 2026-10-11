@@ -1,0 +1,16 @@
+{
+  "name": "ec-pi-agent-extensions",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "publish:public:check": "node scripts/publish-public.ts --check",
+    "publish:public": "node scripts/publish-public.ts --push"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-ai": "0.87.1",
+    "@earendil-works/pi-coding-agent": "0.87.1",
+    "@earendil-works/pi-tui": "0.87.1",
+    "@types/node": "22.19.19",
+    "typescript": "5.9.3"
+  }
+}
