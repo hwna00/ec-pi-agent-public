@@ -6,7 +6,7 @@ ERP 개발을 위한 Pi 기반 에이전트 하네스.
 
 ## Architecture
 
-![Pi 하네스 연결 구조](reports/pi-harness-architecture.png)
+![Pi 하네스 연결 구조](docs/images/pi-harness-architecture.png)
 
 | 연결 | 기능 | 실행 경로 |
 | --- | --- | --- |
@@ -18,7 +18,7 @@ ERP 개발을 위한 Pi 기반 에이전트 하네스.
 
 ## Work Context
 
-![업무 컨텍스트 수집·저장·세션 적용 구조](reports/pi-work-context-flow.png)
+![업무 컨텍스트 수집·저장·세션 적용 구조](docs/images/pi-work-context-flow.png)
 
 - 관련 게시글·답글·첨부 수집과 업무 단위 저장
 - 선택한 자료의 경로·파일 트리를 Pi에 전달
@@ -87,7 +87,7 @@ Pi의 브라우저 관리 계층에서 Chrome의 CDP(원격 디버깅) 연결을
 
 과거 세션의 분석 근거와 해결 과정을 현재 작업에서 참고하기 위한 검색 기능.
 
-![세션 RAG 저장·검색 흐름](reports/pi-session-rag-flow.png)
+![세션 RAG 저장·검색 흐름](docs/images/pi-session-rag-flow.png)
 
 | 단계 | 기능 |
 | --- | --- |
