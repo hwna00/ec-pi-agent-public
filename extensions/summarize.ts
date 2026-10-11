@@ -9,7 +9,7 @@ import type {
 } from '@earendil-works/pi-coding-agent';
 import { DynamicBorder, getMarkdownTheme } from '@earendil-works/pi-coding-agent';
 import { Container, Markdown, matchesKey, Text } from '@earendil-works/pi-tui';
-import { getCurrentSessionLabel, parseSessionName, type SessionLabel } from './session-label-editor';
+import { getCurrentSessionLabel, getCurrentSessionName, parseSessionName, type SessionLabel } from './session-label-editor.ts';
 
 type ContentBlock = {
 	type?: string;
@@ -423,8 +423,9 @@ export default function (pi: ExtensionAPI) {
 				return;
 			}
 
-			const sessionName = pi.getSessionName();
-			const storedLabel = getCurrentSessionLabel(ctx.sessionManager.getEntries());
+			const labelEntries = ctx.sessionManager.getBranch();
+			const sessionName = getCurrentSessionName(labelEntries);
+			const storedLabel = getCurrentSessionLabel(labelEntries);
 			const legacyLabel = sessionName?.trim()
 				? (() => {
 						const parsed = parseSessionName(sessionName);
@@ -442,7 +443,7 @@ export default function (pi: ExtensionAPI) {
 			const savedPath = saveSummary(summary, sessionLabel);
 			await showSummaryUi(summary, ctx);
 			if (ctx.hasUI) {
-				ctx.ui.notify(savedPath, 'success');
+				ctx.ui.notify(savedPath, 'info');
 			}
 		},
 	});

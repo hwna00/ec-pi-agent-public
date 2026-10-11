@@ -1,3 +1,5 @@
+import type { ConnectOptions } from "puppeteer-core";
+import type { BrowserOptions } from "./types.ts";
 /**
  * @license
  * Copyright 2026 Google LLC
@@ -28,24 +30,42 @@ const recordSchema = zod.object({
 });
 
 export async function defaultChromeExecutable() {
-  const candidates = process.platform === "win32"
-    ? [process.env.ProgramFiles, process.env["ProgramFiles(x86)"], process.env.LOCALAPPDATA]
-        .filter(Boolean).map(root => path.join(root, "Google", "Chrome", "Application", "chrome.exe"))
-    : process.platform === "darwin"
-      ? ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"]
-      : ["/usr/bin/google-chrome", "/usr/bin/google-chrome-stable", "/usr/bin/chromium", "/usr/bin/chromium-browser"];
+  const candidates =
+    process.platform === "win32"
+      ? [
+          process.env.ProgramFiles,
+          process.env["ProgramFiles(x86)"],
+          process.env.LOCALAPPDATA,
+        ]
+          .filter((root): root is string => Boolean(root))
+          .map((root) =>
+            path.join(root, "Google", "Chrome", "Application", "chrome.exe"),
+          )
+      : process.platform === "darwin"
+        ? ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"]
+        : [
+            "/usr/bin/google-chrome",
+            "/usr/bin/google-chrome-stable",
+            "/usr/bin/chromium",
+            "/usr/bin/chromium-browser",
+          ];
   for (const candidate of candidates) {
-    try { await fs.access(candidate); return candidate; } catch {}
+    try {
+      await fs.access(candidate);
+      return candidate;
+    } catch {}
   }
-  throw new Error("Chrome executable not found. Set executablePath for managed Chrome.");
+  throw new Error(
+    "Chrome executable not found. Set executablePath for managed Chrome.",
+  );
 }
 /** One private file per browser/session; URLs, cookies and request bodies are not stored. */
 export class BrowserRegistry {
   root;
-  connectOptions;
+  connectOptions: ConnectOptions;
   constructor(
     root = path.join(os.homedir(), ".cache", "chrome-devtools-mcp", "registry"),
-    connectOptions = {},
+    connectOptions: ConnectOptions = {},
   ) {
     this.root = root;
     this.connectOptions = connectOptions;
@@ -83,7 +103,7 @@ export class BrowserRegistry {
       },
     );
   }
-  async bind(sessionId, browserId, targetId) {
+  async bind(sessionId: string, browserId: string, targetId?: string) {
     await fs.mkdir(this.root, { recursive: true, mode: 0o700 });
     const lock = path.join(
       this.root,
@@ -139,7 +159,7 @@ export class BrowserRegistry {
       }
       throw error;
     }
-    const records = [];
+    const records: { browserId: string; managed: boolean }[] = [];
     for (const name of files.filter((name) => name.endsWith(".json"))) {
       const record = recordSchema.parse(
         await this.read(path.join(this.root, "browsers", name)),
@@ -162,7 +182,7 @@ export class BrowserRegistry {
       defaultViewport: null,
     });
   }
-  async acquire(browserId, options = {}) {
+  async acquire(browserId: string, options: BrowserOptions = {}) {
     identifier.parse(browserId);
     await fs.mkdir(this.root, { recursive: true, mode: 0o700 });
     const lock = path.join(this.root, `browser-${browserId}.lock`);
@@ -278,8 +298,7 @@ export class BrowserRegistry {
       }
       await fs.rm(portFile, { force: true });
       const executable =
-        options.executablePath ??
-        await defaultChromeExecutable();
+        options.executablePath ?? (await defaultChromeExecutable());
       const child = spawn(
         executable,
         [

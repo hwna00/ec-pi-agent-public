@@ -1,10 +1,11 @@
+import type { BrowserOptions } from "./types.ts";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Type } from "@sinclair/typebox";
-import { RawMCP, piRoot } from "./transport.mjs";
-import { serverSpec } from "./mcp.mjs";
-import { BrowserRegistry } from "./browser-registry.mjs";
-import { leaseConnection } from "./browser-session.mjs";
+import { RawMCP, piRoot } from "./transport.ts";
+import { serverSpec } from "./mcp.ts";
+import { BrowserRegistry } from "./browser-registry.ts";
+import { leaseConnection } from "./browser-session.ts";
 
 const exposed = [
   "list_pages",
@@ -14,7 +15,14 @@ const exposed = [
   "get_network_request",
   "resend_network_request",
 ];
-export default function installBrowserTools(pi, options = {}) {
+export default function installBrowserTools(
+  pi,
+  options: {
+    config?: any;
+    registry?: string;
+    browserOptions?: BrowserOptions;
+  } = {},
+) {
   const sessions = new Map();
   let metadata;
   async function config() {
@@ -33,7 +41,7 @@ export default function installBrowserTools(pi, options = {}) {
     if (!sessions.has(id)) sessions.set(id, { id, leases: new Map() });
     return sessions.get(id);
   }
-  async function connection(ctx, browserId, create = false) {
+  async function connection(ctx, browserId = undefined, create = false) {
     const session = await state(ctx);
     const settings = await config();
     const defaults = settings.browsers?.[0] ?? {
@@ -70,7 +78,7 @@ export default function installBrowserTools(pi, options = {}) {
     return lease.connection;
   }
   async function closeSessions() {
-    const pending = [];
+    const pending: Promise<unknown>[] = [];
     for (const session of sessions.values())
       for (const lease of session.leases.values())
         pending.push(
@@ -158,7 +166,7 @@ export default function installBrowserTools(pi, options = {}) {
       id: "metadata",
       command: spec.command,
       args: [
-        spec.mcpPath,
+        spec.mcpPath!,
         "--autoConnect",
         "--no-usage-statistics",
         "--no-performance-crux",

@@ -1,3 +1,4 @@
+import type { ServerSpec } from "./types.ts";
 import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { resolve, dirname } from "node:path";
@@ -12,7 +13,11 @@ const { StdioClientTransport } = await import(
     .href
 );
 export class RawMCP {
-  constructor(spec) {
+  spec: ServerSpec;
+  client: any;
+  transport: any;
+  tools: any[] = [];
+  constructor(spec: ServerSpec) {
     this.spec = spec;
   }
   async start() {
@@ -53,7 +58,7 @@ export class RawMCP {
       const error = new Error(
         `MCP ${this.spec.id}: ${name} 실패${reason ? " (" + reason + ")" : ""}`,
       );
-      error.detail = detail;
+      (error as Error & { detail: string }).detail = detail;
       throw error;
     }
     return result;

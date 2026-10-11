@@ -8,13 +8,13 @@ ERP 개발을 위한 Pi 기반 에이전트 하네스.
 
 ![Pi 하네스 연결 구조](docs/images/pi-harness-architecture.png)
 
-| 연결 | 기능 | 실행 경로 |
-| --- | --- | --- |
-| Pi → IDE | 디버그 실행·중지, 콘솔 조회 | `pi-vscode` → VS Code HTTP 브리지 |
-| Pi → Git | 소스·산출물 브랜치 동기화 | `gco` → Git 스크립트 |
-| Pi → DB | 스키마·데이터·업무 설정 조회 | `pg_zeus` MCP |
-| Pi → Vector DB | 세션 요약 저장·검색 | `pi-session-rag` → MongoDB |
-| Pi → Website | 화면·통신 조사, 게시글·첨부 수집 | 브라우저 MCP·`context-graph`·`DebugMCP` |
+| 연결           | 기능                             | 실행 경로                               |
+| -------------- | -------------------------------- | --------------------------------------- |
+| Pi → IDE       | 디버그 실행·중지, 콘솔 조회      | `pi-vscode` → VS Code HTTP 브리지       |
+| Pi → Git       | 소스·산출물 브랜치 동기화        | `gco` → Git 스크립트                    |
+| Pi → DB        | 스키마·데이터·업무 설정 조회     | `pg_zeus` MCP                           |
+| Pi → Vector DB | 세션 요약 저장·검색              | `pi-session-rag` → MongoDB              |
+| Pi → Website   | 화면·통신 조사, 게시글·첨부 수집 | 브라우저 MCP·`context-graph`·`DebugMCP` |
 
 ## Work Context
 
@@ -74,10 +74,10 @@ Pi의 브라우저 관리 계층에서 Chrome의 CDP(원격 디버깅) 연결을
 
 ### 수집과 적용 명령
 
-| 명령 | 역할 |
-| --- | --- |
+| 명령                          | 역할                                                                      |
+| ----------------------------- | ------------------------------------------------------------------------- |
 | `/load-context <유형>:<번호>` | 브라우저에서 기준 글·관련 글·첨부 수집과 로컬 저장, 현재 세션의 선택 유지 |
-| `/apply-context [유형:번호]` | 재수집·브라우저 연결 없이 로컬 자료를 현재 세션에 적용하고 선택·라벨 갱신 |
+| `/apply-context [유형:번호]`  | 재수집·브라우저 연결 없이 로컬 자료를 현재 세션에 적용하고 선택·라벨 갱신 |
 
 `/apply-context` 인자 생략 시 프로젝트 → 유형 → 게시글 순서로 선택.
 
@@ -89,14 +89,14 @@ Pi의 브라우저 관리 계층에서 Chrome의 CDP(원격 디버깅) 연결을
 
 ![세션 RAG 저장·검색 흐름](docs/images/pi-session-rag-flow.png)
 
-| 단계 | 기능 |
-| --- | --- |
-| 수집 | 현재 메인 분기의 사용자·에이전트 텍스트를 질문·답변 단위로 구성 |
-| 요약 | 원문 질문 보존, 턴별 답변 요약과 전체 세션 개요 생성 |
+| 단계   | 기능                                                                           |
+| ------ | ------------------------------------------------------------------------------ |
+| 수집   | 현재 메인 분기의 사용자·에이전트 텍스트를 질문·답변 단위로 구성                |
+| 요약   | 원문 질문 보존, 턴별 답변 요약과 전체 세션 개요 생성                           |
 | 임베딩 | 요약 Markdown을 토큰 한도에 맞춰 무손실 분할하고 Cloudflare BGE-M3로 벡터 생성 |
-| 저장 | 로컬 Markdown·벡터 보관과 MongoDB 문서·청크 저장 |
-| 검색 | 의미 기반 벡터 검색과 BM25 키워드 검색, 코사인 유사도 필터와 RRF 순위 결합 |
-| 반환 | 본문·출처 검증 후 청크 전체 텍스트와 세션·분기·원본 entry 참조 반환 |
+| 저장   | 로컬 Markdown·벡터 보관과 MongoDB 문서·청크 저장                               |
+| 검색   | 의미 기반 벡터 검색과 BM25 키워드 검색, 코사인 유사도 필터와 RRF 순위 결합     |
+| 반환   | 본문·출처 검증 후 청크 전체 텍스트와 세션·분기·원본 entry 참조 반환            |
 
 ### 설계 포인트
 
@@ -116,13 +116,13 @@ Pi의 브라우저 관리 계층에서 Chrome의 CDP(원격 디버깅) 연결을
 - 다섯 역할로 분리한 프롬프트·추가 도구·스킬
 - 메인 Pi의 작업 위임과 역할별 결과·근거 보고
 
-| 역할 | 담당 | 추가 도구 | 스킬 |
-| --- | --- | --- | --- |
-| [기술분석반](agents/technical-analysis.md) | 코드·제약 분석과 구조 설계 | Debug Console, Serena, Graphify 조회 | — |
-| [데이터 조사반](agents/data-investigation.md) | 스키마·데이터·업무 설정 조사 | `pg_zeus` | `query-bizz-setting`, `query-template-setting`, `query-search-item-setting` |
-| [현장 조사반](agents/field-investigation.md) | 화면·사용 흐름·통신 조사 | `DebugMCP`, `browser-tools` | `eccp` |
-| [개발반](agents/development.md) | 기능 구현·버그 수정·마이그레이션·테스트 작성 | — | `ponytail` |
-| [검증반](agents/verification.md) | Velox 서버 테스트 | Debug Console | `valuep-migration-verification` |
+| 역할                                          | 담당                                         | 추가 도구                            | 스킬                                                                        |
+| --------------------------------------------- | -------------------------------------------- | ------------------------------------ | --------------------------------------------------------------------------- |
+| [기술분석반](agents/technical-analysis.md)    | 코드·제약 분석과 구조 설계                   | Debug Console, Serena, Graphify 조회 | —                                                                           |
+| [데이터 조사반](agents/data-investigation.md) | 스키마·데이터·업무 설정 조사                 | `pg_zeus`                            | `query-bizz-setting`, `query-template-setting`, `query-search-item-setting` |
+| [현장 조사반](agents/field-investigation.md)  | 화면·사용 흐름·통신 조사                     | `DebugMCP`, `browser-tools`          | `eccp`                                                                      |
+| [개발반](agents/development.md)               | 기능 구현·버그 수정·마이그레이션·테스트 작성 | —                                    | `ponytail`                                                                  |
+| [검증반](agents/verification.md)              | Velox 서버 테스트                            | Debug Console                        | `valuep-migration-verification`                                             |
 
 `pi-subagents` 기반의 역할 구성.
 
@@ -132,37 +132,37 @@ Pi의 브라우저 관리 계층에서 Chrome의 CDP(원격 디버깅) 연결을
 
 ## Custom Extensions
 
-| 확장 | 기능 |
-| --- | --- |
-| [context-graph](extensions/context-graph.ts) | 관련 게시글·관계·첨부 수집, 저장 경로와 파일 트리 안내 |
-| [pi-session-rag](extensions/pi-session-rag/README.md) | Q&A 요약·BGE-M3 임베딩·MongoDB 저장·검색 |
-| [pi-vscode](extensions/pi-vscode/README.md) | VS Code compound 디버그 실행·중지와 콘솔 로그 조회 |
-| [gco](extensions/gco.ts) | 디버거 종료 후 소스 rebase, 산출물 브랜치 정리·pull |
-| [switch-pg-connection](extensions/switch-pg-connection.ts) | `pg_zeus` 이름을 유지하며 접속 주소 변경·reload |
-| [session-label-editor](extensions/session-label-editor.ts) | 세션 제목·분류 편집과 입력창 표시 |
+| 확장                                                       | 기능                                                   |
+| ---------------------------------------------------------- | ------------------------------------------------------ |
+| [context-graph](extensions/context-graph.ts)               | 관련 게시글·관계·첨부 수집, 저장 경로와 파일 트리 안내 |
+| [pi-session-rag](extensions/pi-session-rag/README.md)      | Q&A 요약·BGE-M3 임베딩·MongoDB 저장·검색               |
+| [pi-vscode](extensions/pi-vscode/README.md)                | VS Code compound 디버그 실행·중지와 콘솔 로그 조회     |
+| [gco](extensions/gco.ts)                                   | 디버거 종료 후 소스 rebase, 산출물 브랜치 정리·pull    |
+| [switch-pg-connection](extensions/switch-pg-connection.ts) | `pg_zeus` 이름을 유지하며 접속 주소 변경·reload        |
+| [session-label-editor](extensions/session-label-editor.ts) | 세션 제목·분류 편집과 입력창 표시                      |
 
 ## MCP
 
-| MCP | 연동 목적 |
-| --- | --- |
-| Graphify·Serena | 코드의 심볼·호출·의존 관계 탐색 |
-| `pg_zeus` | PostgreSQL 스키마·데이터 조회 |
-| `DebugMCP` | 웹·외부 시스템 조사 |
-| Chrome DevTools·Playwright | ERP 브라우저 연결·제어와 업무 자료 수집 |
-| [LangSmith](https://github.com/langchain-ai/langsmith-mcp-server) | 에이전트 실행 트레이스 조회·분석 |
+| MCP                                                               | 연동 목적                               |
+| ----------------------------------------------------------------- | --------------------------------------- |
+| Graphify·Serena                                                   | 코드의 심볼·호출·의존 관계 탐색         |
+| `pg_zeus`                                                         | PostgreSQL 스키마·데이터 조회           |
+| `DebugMCP`                                                        | 웹·외부 시스템 조사                     |
+| Chrome DevTools·Playwright                                        | ERP 브라우저 연결·제어와 업무 자료 수집 |
+| [LangSmith](https://github.com/langchain-ai/langsmith-mcp-server) | 에이전트 실행 트레이스 조회·분석        |
 
 ## Skills
 
 ERP 데이터 조사, 업무 컨텍스트 조회, 이관 검증, 개발 흐름 자동화 중심의 대표 스킬.
 
-| 스킬 | 기능 |
-| --- | --- |
-| [query-bizz-setting](skills/query-bizz-setting/SKILL.md) | 업무 속성·항목 조회용 SQL 템플릿과 런타임 코드 대응 정리 |
-| [query-template-setting](skills/query-template-setting/SKILL.md) | 화면·인쇄·현황 양식의 항목과 속성 조회 절차 |
-| [query-search-item-setting](skills/query-search-item-setting/SKILL.md) | 검색 컬럼과 사용자별 검색 탭 설정 조회 |
-|  |
-| [html-report](skills/html-report/SKILL.md) | 독립 HTML 기술 보고서의 구조·문체·레이아웃 |
-| [asd-ste100](skills/asd-ste100/SKILL.md) | 간결하고 명확한 문장 작성 |
+| 스킬                                                                   | 기능                                                     |
+| ---------------------------------------------------------------------- | -------------------------------------------------------- |
+| [query-bizz-setting](skills/query-bizz-setting/SKILL.md)               | 업무 속성·항목 조회용 SQL 템플릿과 런타임 코드 대응 정리 |
+| [query-template-setting](skills/query-template-setting/SKILL.md)       | 화면·인쇄·현황 양식의 항목과 속성 조회 절차              |
+| [query-search-item-setting](skills/query-search-item-setting/SKILL.md) | 검색 컬럼과 사용자별 검색 탭 설정 조회                   |
+|                                                                        |
+| [html-report](skills/html-report/SKILL.md)                             | 독립 HTML 기술 보고서의 구조·문체·레이아웃               |
+| [asd-ste100](skills/asd-ste100/SKILL.md)                               | 간결하고 명확한 문장 작성                                |
 
 ## 디렉터리
 
@@ -178,4 +178,3 @@ ERP 데이터 조사, 업무 컨텍스트 조회, 이관 검증, 개발 흐름 �
 ├── sessions/           # Pi 세션 기록
 └── rag-summaries/      # 세션 Q&A 요약·임베딩 결과
 ```
-

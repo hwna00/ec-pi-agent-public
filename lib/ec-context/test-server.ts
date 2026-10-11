@@ -1,10 +1,18 @@
-import { testURL } from './session.mjs';
+import { testURL } from "./session.ts";
 // Inspect the actual form on each navigation. Never interpolate values into selectors.
-export async function openTestServer(browser,target) {
-  const environment=target.environment||target.server.match(/^(test|zeus|stage)/i)?.[1]?.toLowerCase();
-  const url=testURL(environment);await browser.open(url);
-  const account={company:target.company,user:target.user,password:target.password,server:target.server};
-  const status=await browser.evaluate(`() => {
+export async function openTestServer(browser, target) {
+  const environment =
+    target.environment ||
+    target.server.match(/^(test|zeus|stage)/i)?.[1]?.toLowerCase();
+  const url = testURL(environment);
+  await browser.open(url);
+  const account = {
+    company: target.company,
+    user: target.user,
+    password: target.password,
+    server: target.server,
+  };
+  const status = await browser.evaluate(`() => {
     const account=${JSON.stringify(account)};
     if(location.hostname!==${JSON.stringify(new URL(url).hostname)})return {state:"unexpected_origin"};
     const visible=e=>e && e.getClientRects().length && !e.disabled;
@@ -28,14 +36,26 @@ export async function openTestServer(browser,target) {
     if(!submit)return {state:'submit_missing'};
     submit.click();return {state:'submitted'};
   }`);
-  if(status.state!=='submitted')throw new Error(`테스트 페이지를 열었지만 로그인 폼 확인이 필요합니다 (${status.state}).`);
+  if (status.state !== "submitted")
+    throw new Error(
+      `테스트 페이지를 열었지만 로그인 폼 확인이 필요합니다 (${status.state}).`,
+    );
   // Submission and successful authentication are different states.
-  for(let i=0;i<15;i++) {
-    await new Promise(resolve=>setTimeout(resolve,500));
-    try {const state=await browser.evaluate(`() => ({ok:/^\\/ec(?:5|56)\\/view\\//.test(location.pathname)&&!!new URL(location.href).searchParams.get('ec_req_sid'),disabled:new URL(location.href).searchParams.get('__disableMin')==='Y'})`);
-      if(state.ok && state.disabled)return {state:'authenticated',environment,server:target.server};
-      if(state.ok)await browser.evaluate("() => {const u=new URL(location.href);u.searchParams.set('__disableMin','Y');location.replace(u);return true;}");
-    }catch{}
+  for (let i = 0; i < 15; i++) {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    try {
+      const state = await browser.evaluate(
+        `() => ({ok:/^\\/ec(?:5|56)\\/view\\//.test(location.pathname)&&!!new URL(location.href).searchParams.get('ec_req_sid'),disabled:new URL(location.href).searchParams.get('__disableMin')==='Y'})`,
+      );
+      if (state.ok && state.disabled)
+        return { state: "authenticated", environment, server: target.server };
+      if (state.ok)
+        await browser.evaluate(
+          "() => {const u=new URL(location.href);u.searchParams.set('__disableMin','Y');location.replace(u);return true;}",
+        );
+    } catch {}
   }
-  throw new Error('로그인 제출 후 성공을 확인하지 못했습니다. 열린 탭의 오류 또는 추가 인증을 확인하세요.');
+  throw new Error(
+    "로그인 제출 후 성공을 확인하지 못했습니다. 열린 탭의 오류 또는 추가 인증을 확인하세요.",
+  );
 }

@@ -7,12 +7,12 @@ const candidates = tabs.filter(t => t.type === 'page' && /^https:\/\/[\w-]+\.eco
 if (candidates.length !== 1) throw new Error('Expected one ERP tab; close ambiguous ERP tabs');
 const tab = candidates[0];
 const ws = new WebSocket(tab.webSocketDebuggerUrl);
-const result = await new Promise((resolve, reject) => {
+const result = await new Promise<string>((resolve, reject) => {
   const timeout = setTimeout(() => { ws.close(); reject(new Error('CDP timeout')); }, 10000);
   ws.addEventListener('error', () => {clearTimeout(timeout); reject(new Error('CDP connection failed'));});
   ws.addEventListener('open', () => ws.send(JSON.stringify({id:1,method:'Runtime.evaluate',params:{expression:'JSON.stringify({text:document.body.innerText})',returnByValue:true}})));
   ws.addEventListener('message', event => {
-    const msg=JSON.parse(event.data);
+    const msg=JSON.parse(String(event.data));
     if (msg.id!==1) return;
     clearTimeout(timeout);ws.close();
     if (msg.error || msg.result.exceptionDetails) reject(new Error('Cannot read current DOM'));

@@ -1,10 +1,12 @@
+import type { Browser as PuppeteerBrowser, Page } from "puppeteer-core";
+import type { ServerSpec } from "./types.ts";
 // Pi owns browser lifetime and persistent identities. Upstream is a plain MCP client.
 import { randomUUID } from "node:crypto";
-import { BrowserRegistry } from "./browser-registry.mjs";
-import { RawMCP } from "./transport.mjs";
+import { BrowserRegistry } from "./browser-registry.ts";
+import { RawMCP } from "./transport.ts";
 
 const connections = new Map();
-export function text(result) {
+export function text(result): string {
   return (result.content || [])
     .filter((item) => item.type === "text")
     .map((item) => item.text)
@@ -48,7 +50,15 @@ export function pages(result) {
 }
 
 export class BrowserConnection {
-  constructor(spec) {
+  spec: ServerSpec;
+  registry: BrowserRegistry;
+  queue: Promise<any>;
+  browser?: PuppeteerBrowser;
+  upstream?: RawMCP;
+  tools: any[] = [];
+  selectedPageId?: number;
+  savedPageFound = false;
+  constructor(spec: ServerSpec) {
     this.spec = spec;
     this.registry = new BrowserRegistry(spec.registry);
     this.queue = Promise.resolve();
@@ -70,7 +80,7 @@ export class BrowserConnection {
         id: this.spec.id,
         command: this.spec.command,
         args: [
-          this.spec.mcpPath,
+          this.spec.mcpPath!,
           "--wsEndpoint",
           this.browser.wsEndpoint(),
           "--no-usage-statistics",
@@ -78,7 +88,7 @@ export class BrowserConnection {
         ],
       }).start();
       this.tools = this.upstream.tools;
-      await this.registry.bind(this.spec.sessionId, this.spec.id);
+      await this.registry.bind(this.spec.sessionId!, this.spec.id);
       await this.restore();
       return this;
     } catch (error) {
@@ -89,11 +99,11 @@ export class BrowserConnection {
   // MCP does not expose CDP target IDs. A short-lived random page marker joins
   // the public pageId API with Pi's CDP connection, without matching URLs.
   async identities() {
-    const listed = pages(await this.upstream.call("list_pages"));
+    const listed = pages(await this.upstream!.call("list_pages"));
     const key = `pi-browser-${randomUUID()}`;
-    const marked = [];
+    const marked: Page[] = [];
     try {
-      for (const page of await this.browser.pages()) {
+      for (const page of await this.browser!.pages()) {
         const cdp = await page.createCDPSession();
         let targetId;
         try {
@@ -113,10 +123,11 @@ export class BrowserConnection {
         );
         marked.push(page);
       }
-      const result = [];
+      const result: { pageId: number; selected: boolean; targetId: string }[] =
+        [];
       for (const page of listed) {
         const targetId = json(
-          await this.upstream.call("evaluate_script", {
+          await this.upstream!.call("evaluate_script", {
             pageId: page.pageId,
             function: `() => globalThis[${JSON.stringify(key)}] ?? null`,
           }),
@@ -135,7 +146,7 @@ export class BrowserConnection {
     }
   }
   async restore() {
-    const state = await this.registry.session(this.spec.sessionId);
+    const state = await this.registry.session(this.spec.sessionId!);
     const targetId = state.browsers.find(
       (item) => item.browserId === this.spec.id,
     )?.targetId;
@@ -146,14 +157,14 @@ export class BrowserConnection {
       current.find((page) => page.selected)?.pageId ??
       current[0]?.pageId;
     if (this.selectedPageId !== undefined) {
-      await this.upstream.call("select_page", {pageId:this.selectedPageId});
+      await this.upstream!.call("select_page", { pageId: this.selectedPageId });
     }
     this.savedPageFound = Boolean(saved);
     return this.describe(current);
   }
   describe(current) {
     return {
-      sessionId: this.spec.sessionId,
+      sessionId: this.spec.sessionId!,
       browserId: this.spec.id,
       pages: current.map((page) => ({
         ...page,
@@ -172,11 +183,11 @@ export class BrowserConnection {
       );
       if (!page) throw new Error("Page is no longer available");
       await this.registry.bind(
-        this.spec.sessionId,
+        this.spec.sessionId!,
         this.spec.id,
         page.targetId,
       );
-      await this.upstream.call("select_page", {pageId});
+      await this.upstream!.call("select_page", { pageId });
       this.selectedPageId = pageId;
       this.savedPageFound = true;
       return {
@@ -184,7 +195,11 @@ export class BrowserConnection {
       };
     });
   }
-  async call(name, args = {}, selectedPageId) {
+  async call(
+    name: string,
+    args: Record<string, any> = {},
+    selectedPageId?: number,
+  ) {
     return this.exclusive(async () => {
       const tool = this.tools.find((tool) => tool.name === name);
       if (!tool)
@@ -195,7 +210,7 @@ export class BrowserConnection {
       if (tool.inputSchema.properties?.pageId && params.pageId === undefined) {
         params.pageId = selectedPageId ?? this.selectedPageId;
       }
-      const result = await this.upstream.call(name, params);
+      const result = await this.upstream!.call(name, params);
       if (name === "select_page") this.selectedPageId = params.pageId;
       if (name === "new_page") {
         const current = pages(result);

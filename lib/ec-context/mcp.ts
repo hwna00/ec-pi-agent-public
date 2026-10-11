@@ -1,38 +1,45 @@
+import type { ServerSpec, BrowserProvider, BrowserOptions } from "./types.ts";
 import { createRequire } from "node:module";
 import { resolve, dirname, isAbsolute } from "node:path";
-import { RawMCP, piRoot } from "./transport.mjs";
-import { leaseConnection } from "./browser-session.mjs";
+import { RawMCP, piRoot } from "./transport.ts";
+import { leaseConnection } from "./browser-session.ts";
 export { piRoot };
 const require = createRequire(import.meta.url);
 
 export class MCP {
-  constructor(spec) {
+  spec: ServerSpec;
+  lease?: Awaited<ReturnType<typeof leaseConnection>>;
+  connection?: import("./browser-session.ts").BrowserConnection;
+  raw?: RawMCP;
+  tools: any[] = [];
+  selectedPageId?: number;
+  constructor(spec: ServerSpec) {
     this.spec = spec;
   }
   async start() {
     if (this.spec.piManaged) {
       this.lease = await leaseConnection(this.spec);
-      this.connection = this.lease.connection;
-      this.tools = this.connection.tools;
+      this.connection = this.lease!.connection;
+      this.tools = this.connection!.tools;
     } else {
       this.raw = await new RawMCP(this.spec).start();
-      this.tools = this.raw.tools;
+      this.tools = this.raw!.tools;
     }
     return this;
   }
   async use() {
-    return this.connection.describeCurrent();
+    return this.connection!.describeCurrent();
   }
   async remember(pageId) {
-    return this.connection.remember(pageId);
+    return this.connection!.remember(pageId);
   }
-  async call(name, args = {}) {
-    if (!this.connection) return this.raw.call(name, args);
+  async call(name: string, args: Record<string, any> = {}) {
+    if (!this.connection) return this.raw!.call(name, args);
     if (name === "select_page") {
       this.selectedPageId = args.pageId;
-      return this.connection.call(name, args);
+      return this.connection!.call(name, args);
     }
-    return this.connection.call(name, args, this.selectedPageId);
+    return this.connection!.call(name, args, this.selectedPageId);
   }
   async close() {
     await this.lease?.release();
@@ -40,7 +47,10 @@ export class MCP {
   }
 }
 
-export function serverSpec(provider, options = {}) {
+export function serverSpec(
+  provider: BrowserProvider,
+  options: BrowserOptions = {},
+): ServerSpec {
   if (!["chrome", "playwright"].includes(provider))
     throw new Error("Browser provider must be chrome or playwright");
   if (provider === "chrome") {
@@ -92,7 +102,7 @@ export function serverSpec(provider, options = {}) {
     ],
   };
 }
-export function resultText(result) {
+export function resultText(result): string {
   return (result.content || [])
     .filter((c) => c.type === "text")
     .map((c) => c.text)
