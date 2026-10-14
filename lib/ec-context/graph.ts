@@ -1,5 +1,10 @@
 import { createHash } from "node:crypto";
-import type { Attachment, TestAccount } from "./types.ts";
+import type {
+  Attachment,
+  TestAccount,
+  FailedWidget,
+  FailedAttachment,
+} from "./types.ts";
 import { htmlToMarkdown, cleanURL } from "./html.ts";
 export const postTypes = [
   "job",
@@ -45,6 +50,8 @@ export interface Metadata {
   replies?: Reply[];
   files?: Attachment[];
   testServers?: TestAccount[];
+  failedWidgets?: FailedWidget[];
+  failedAttachments?: FailedAttachment[];
   workspaceEdges?: Edge[];
 }
 export interface RawPost extends Metadata {
@@ -68,6 +75,10 @@ export interface Graph {
   entryKey: string;
   nodes: PostNode[];
   edges: Edge[];
+  only?: true;
+}
+export interface CollectionOptions {
+  only?: boolean;
 }
 export interface PostReader {
   readById(type: PostType, id: string): Promise<RawPost>;
@@ -115,6 +126,7 @@ export const refs = (values: PostRef[]) =>
 export function canonical(graph: Graph): Graph {
   return {
     entryKey: graph.entryKey,
+    ...(graph.only ? { only: true as const } : {}),
     nodes: [...graph.nodes].sort((a, b) => a.key.localeCompare(b.key)),
     edges: [...graph.edges].sort((a, b) =>
       (a.from + "\0" + a.relation + "\0" + a.to).localeCompare(
@@ -139,9 +151,13 @@ export function serialize(value: unknown): Buffer {
 export const digest = (value: string | Buffer) =>
   createHash("sha256").update(value).digest("hex");
 export function validate(graph: Graph): Graph {
+  const fields = graph && Object.keys(graph).sort().join();
   if (
     !graph ||
-    Object.keys(graph).sort().join() !== "edges,entryKey,nodes" ||
+    !(
+      fields === "edges,entryKey,nodes" ||
+      (fields === "edges,entryKey,nodes,only" && graph.only === true)
+    ) ||
     !Array.isArray(graph.nodes) ||
     !Array.isArray(graph.edges)
   )
@@ -200,6 +216,8 @@ export function parsePost(post: RawPost): PostNode {
     "replies",
     "files",
     "testServers",
+    "failedWidgets",
+    "failedAttachments",
   ] as const) {
     if (name in post)
       Object.assign(metadata, { [name]: structuredClone(post[name]) });
@@ -208,48 +226,220 @@ export function parsePost(post: RawPost): PostNode {
     ...r,
     key: k,
     metadata,
-    data:
-      md +
-      "\n\n## 게시글 관계\n\n상위 작업: " +
-      (parent ? key(parent) : "없음") +
-      "\n\n첨부 게시글:\n" +
-      (attached.length
-        ? attached.map((x) => "- " + key(x)).join("\n")
-        : "- 없음") +
-      "\n",
+    data: md + relationMarkdown(parent, attached),
   };
+}
+function relationMarkdown(parent: PostRef | undefined, attached: PostRef[]) {
+  return (
+    "\n\n## 게시글 관계\n\n상위 작업: " +
+    (parent ? key(parent) : "없음") +
+    "\n\n첨부 게시글:\n" +
+    (attached.length
+      ? attached.map((post) => "- " + key(post)).join("\n")
+      : "- 없음") +
+    "\n"
+  );
+}
+export function postJobKey(
+  post: Pick<RawPost, "ref" | "job" | "relations">,
+): string | null {
+  const current = ref(post.ref);
+  if (current.type === "job") return key(current);
+  const parent = post.relations.parentJob;
+  if (parent && ref(parent).type !== "job")
+    throw new ParseError("Invalid parent relation", key(current));
+  const parentKey = parent ? key(parent) : null,
+    metadataKey = post.job?.number
+      ? key({ type: "job", id: post.job.number })
+      : null;
+  if (parentKey && metadataKey && parentKey !== metadataKey)
+    throw new ParseError("Conflicting job ownership", key(current));
+  return parentKey || metadataKey;
+}
+export function nodeJobKey(
+  node: PostNode,
+  edges = node.metadata.workspaceEdges || [],
+): string | null {
+  const parents = [
+    ...new Set(
+      edges
+        .filter(
+          (edge) => edge.from === node.key && edge.relation === "belongs_to",
+        )
+        .map((edge) => edge.to),
+    ),
+  ];
+  if (parents.length > 1)
+    throw new SnapshotError("Conflicting parent jobs", node.key);
+  return postJobKey({
+    ref: node,
+    job: node.metadata.job,
+    relations: { parentJob: parents[0] ? ref(parents[0]) : undefined },
+  });
+}
+export function graphJobKey(graph: Graph): string | null {
+  const entry = graph.nodes.find((node) => node.key === graph.entryKey);
+  if (!entry) throw new SnapshotError("Missing entry node");
+  return nodeJobKey(entry, graph.edges);
+}
+export function scopeGraph(graph: Graph, jobKey = graphJobKey(graph)): Graph {
+  const eligible = new Set(
+    graph.nodes
+      .filter((node) => {
+        if (graph.only) return true;
+        const owner = nodeJobKey(node, graph.edges);
+        return (
+          (!owner || owner === jobKey) &&
+          (node.key === graph.entryKey ||
+            owner ||
+            node.metadata.jobWidgetStatus !== "failed")
+        );
+      })
+      .map((node) => node.key),
+  );
+  if (!eligible.has(graph.entryKey))
+    throw new ContextError(
+      "Post belongs to another job",
+      graph.entryKey,
+      "job_scope_mismatch",
+    );
+  const edges = graph.edges.filter(
+      (edge) =>
+        eligible.has(edge.from) &&
+        eligible.has(edge.to) &&
+        (!graph.only || edge.relation !== "belongs_to"),
+    ),
+    reachable = new Set<string>(),
+    pending = [
+      graph.entryKey,
+      ...graph.nodes
+        .filter(
+          (node) =>
+            !graph.only &&
+            eligible.has(node.key) &&
+            jobKey !== null &&
+            nodeJobKey(node, graph.edges) === jobKey,
+        )
+        .map((node) => node.key),
+    ];
+  while (pending.length) {
+    const current = pending.pop()!;
+    if (reachable.has(current)) continue;
+    reachable.add(current);
+    pending.push(
+      ...edges.filter((edge) => edge.from === current).map((edge) => edge.to),
+    );
+  }
+  const retainedEdges = edges.filter(
+    (edge) => reachable.has(edge.from) && reachable.has(edge.to),
+  );
+  return canonical({
+    entryKey: graph.entryKey,
+    ...(graph.only ? { only: true as const } : {}),
+    nodes: graph.nodes
+      .filter((node) => reachable.has(node.key))
+      .map((node) => {
+        const owned = retainedEdges.filter((edge) => edge.from === node.key),
+          parent = owned.find((edge) => edge.relation === "belongs_to"),
+          attached = owned
+            .filter((edge) => edge.relation === "attach_to")
+            .map((edge) => ref(edge.to)),
+          relationStart = node.data.lastIndexOf("\n\n## 게시글 관계\n\n");
+        return {
+          ...node,
+          metadata: { ...node.metadata, workspaceEdges: owned },
+          data:
+            relationStart >= 0
+              ? node.data.slice(0, relationStart) +
+                relationMarkdown(parent ? ref(parent.to) : undefined, attached)
+              : node.data,
+        };
+      }),
+    edges: retainedEdges,
+  });
 }
 export class GraphService {
   reader: PostReader;
   maxNodes: number;
   signal?: AbortSignal;
-  constructor(reader: PostReader, maxNodes = 100, signal?: AbortSignal) {
+  constructor(reader: PostReader, maxNodes = Infinity, signal?: AbortSignal) {
     this.reader = reader;
     this.maxNodes = maxNodes;
     this.signal = signal;
   }
-  async collect(entry: string | PostRef): Promise<Graph> {
+  async collect(
+    entry: string | PostRef,
+    expectedJob?: string | null,
+    options: CollectionOptions = {},
+  ): Promise<Graph> {
+    const entryRef = ref(entry),
+      entryKey = key(entryRef);
+    if (
+      expectedJob !== undefined &&
+      !options.only &&
+      entryRef.type === "job" &&
+      entryKey !== expectedJob
+    )
+      throw new ContextError(
+        "Post belongs to another job",
+        entryKey,
+        "job_scope_mismatch",
+      );
+    this.signal?.throwIfAborted();
+    const first = await this.reader.readById(entryRef.type, entryRef.id);
+    this.signal?.throwIfAborted();
+    if (key(first.ref) !== entryKey)
+      throw new ParseError("Reader returned a different post", entryKey);
+    const firstJob = postJobKey(first),
+      jobKey = expectedJob === undefined ? firstJob : expectedJob;
+    if (!options.only && firstJob && firstJob !== jobKey)
+      throw new ContextError(
+        "Post belongs to another job",
+        entryKey,
+        "job_scope_mismatch",
+      );
     const raw = new Map<string, RawPost>(),
-      nodes = new Map<string, PostNode>(),
-      visited = new Set<string>();
+      visited = new Set<string>(),
+      excluded = new Set<string>();
+    raw.set(entryKey, first);
     const read = async (r: PostRef) => {
       this.signal?.throwIfAborted();
       const k = key(r);
       if (raw.has(k)) return raw.get(k)!;
+      if (excluded.has(k)) return;
+      if (!options.only && r.type === "job" && k !== jobKey) {
+        excluded.add(k);
+        return;
+      }
+      const p = await this.reader.readById(r.type, r.id);
+      this.signal?.throwIfAborted();
+      if (key(p.ref) !== k)
+        throw new ParseError("Reader returned a different post", k);
+      const owner = postJobKey(p);
+      if (
+        !options.only &&
+        ((owner && owner !== jobKey) ||
+          (!owner && p.jobWidgetStatus === "failed"))
+      ) {
+        excluded.add(k);
+        if (!owner && p.jobWidgetStatus === "failed") {
+          (first.failedWidgets ||= []).push({
+            section: k,
+            type: "relation",
+            label: `소속 작업 확인 (${k})`,
+            code: "job_scope_unavailable",
+          });
+        }
+        return;
+      }
       if (raw.size >= this.maxNodes)
         throw new ContextError(
           "Traversal node limit exceeded; no partial graph saved",
           k,
         );
-      const p = await this.reader.readById(r.type, r.id);
-      this.signal?.throwIfAborted();
-      if (key(p.ref) !== k)
-        throw new ParseError("Reader returned a different post", k);
       raw.set(k, p);
-      nodes.set(k, parsePost(p));
       return p;
     };
-    await read(ref(entry));
     while ([...raw.keys()].some((k) => !visited.has(k))) {
       for (const k of [...raw.keys()].filter((k) => !visited.has(k)).sort()) {
         visited.add(k);
@@ -268,14 +458,18 @@ export class GraphService {
         const targets = refs([
           ...(rel.attachedPosts || []),
           ...(rel.relatedPosts || []),
-          ...(rel.parentJob ? [rel.parentJob] : []),
+          ...(!options.only && rel.parentJob ? [rel.parentJob] : []),
         ]);
         for (const target of targets) await read(target);
       }
     }
     const edges: Edge[] = [];
     for (const [k, p] of raw) {
-      if (p.relations.parentJob)
+      if (
+        !options.only &&
+        p.relations.parentJob &&
+        raw.has(key(p.relations.parentJob))
+      )
         edges.push({
           from: k,
           to: key(p.relations.parentJob),
@@ -286,11 +480,35 @@ export class GraphService {
         ["relatedPosts", "related_to"],
       ] as const) {
         for (const r of refs(p.relations[name] || []))
-          edges.push({ from: k, to: key(r), relation });
+          if (raw.has(key(r))) edges.push({ from: k, to: key(r), relation });
       }
+      if (options.only && p.relations.parentJob && !p.job?.number)
+        p.job = {
+          number: p.relations.parentJob.id,
+          title: p.job?.title ?? null,
+          projectCode: p.job?.projectCode ?? null,
+        };
+      p.relations = {
+        ...(!options.only &&
+        p.relations.parentJob &&
+        raw.has(key(p.relations.parentJob))
+          ? { parentJob: p.relations.parentJob }
+          : {}),
+        attachedPosts: refs(p.relations.attachedPosts || []).filter((target) =>
+          raw.has(key(target)),
+        ),
+        relatedPosts: refs(p.relations.relatedPosts || []).filter((target) =>
+          raw.has(key(target)),
+        ),
+      };
     }
     return validate(
-      canonical({ entryKey: key(entry), nodes: [...nodes.values()], edges }),
+      canonical({
+        entryKey,
+        ...(options.only ? { only: true as const } : {}),
+        nodes: [...raw.values()].map(parsePost),
+        edges,
+      }),
     );
   }
 }

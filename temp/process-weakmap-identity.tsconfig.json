@@ -1,0 +1,12 @@
+{
+  "extends": "D:\\ecxsolution\\ecount.nextv56\\ecount.solution\\@source\\server\\@test-modules\\modules\\definition.@test\\tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "skipLibCheck": true
+  },
+  "files": [
+    "D:\\ecxsolution\\ecount.nextv56\\ecount.solution\\@source\\server\\@test-modules\\modules\\definition.@test\\src\\model_customizer\\process_definition.spec.ts"
+  ],
+  "include": [],
+  "exclude": []
+}

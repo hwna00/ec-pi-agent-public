@@ -5,6 +5,8 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import type { Component, EditorTheme, TUI } from "@earendil-works/pi-tui";
 import { applyContext, chooseContext, clearContext } from "../lib/ec-context/selection.ts";
 import { installResumeMenu, resumeContext } from "../lib/ec-context/resume.ts";
+import { createContextPathReader } from "../lib/ec-context/footer.ts";
+import { stripVTControlCharacters } from "node:util";
 
 type KeybindingsManager = ConstructorParameters<typeof CustomEditor>[2];
 export type SessionCategory = "tp" | "dev" | "hub" | "dp" | "job" | "decision" | "meeting" | "default";
@@ -292,6 +294,7 @@ export default function sessionLabelEditorExtension(
 		if (editor) installResumeMenu(editor, ctx);
 		if (defaultFooter) {
 			const original = defaultFooter;
+			const contextPath = createContextPathReader(ctx);
 			ctx.ui.setFooter((tui, theme, footerData) => ({
 				invalidate: () => original.invalidate(),
 				dispose: footerData.onBranchChange(() => tui.requestRender()),
@@ -301,6 +304,11 @@ export default function sessionLabelEditorExtension(
 					const name = footerName(ctx.sessionManager.getBranch());
 					const line = footerCwd(ctx.sessionManager.getCwd()) + (branch ? ` (${branch})` : "") + (name ? ` • ${displayText(name)}` : "");
 					lines[0] = truncateToWidth(theme.fg("dim", line), width, theme.fg("dim", "..."));
+					const path = contextPath();
+					if (path) {
+						const contextLine = `Context: ${stripVTControlCharacters(path).replace(/[\x00-\x1f\x7f-\x9f]/g, " ")}`;
+						lines.splice(1, 0, truncateToWidth(theme.fg("dim", contextLine), width, theme.fg("dim", "...")));
+					}
 					return lines;
 				},
 			}));

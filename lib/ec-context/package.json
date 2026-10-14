@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test tests/unit.test.ts tests/browser-registry.test.ts tests/workspace-extension.test.ts tests/download.test.ts tests/runtime.test.ts tests/site-reader.test.ts tests/catalog-selection.test.ts tests/session-label-editor.test.ts tests/selection.test.ts tests/session-prompt.test.ts tests/path-migration.test.ts tests/resume.test.ts tests/session-links.test.ts",
+    "test": "node --test tests/unit.test.ts tests/browser-registry.test.ts tests/workspace-extension.test.ts tests/download.test.ts tests/runtime.test.ts tests/site-reader.test.ts tests/attachments.test.ts tests/ecdrive.test.ts tests/ecdrive-download.test.ts tests/job-scope.test.ts tests/catalog-selection.test.ts tests/session-label-editor.test.ts tests/selection.test.ts tests/session-prompt.test.ts tests/path-migration.test.ts tests/resume.test.ts tests/session-links.test.ts tests/only-graph.test.ts tests/only-site-reader.test.ts tests/reader-only.test.ts",
     "test:mcp": "node tests/mcp-replay.ts",
     "test:browser": "node --test tests/separation-integration.test.ts",
     "check": "../../node_modules/.bin/tsc -p tsconfig.json"

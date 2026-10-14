@@ -31,13 +31,18 @@ import {
   digest,
   key,
   ref,
+  graphJobKey,
+  nodeJobKey,
+  scopeGraph,
   type Graph,
   type PostNode,
   type Edge,
   type PostType,
+  type CollectionOptions,
 } from "./graph.ts";
 import { htmlToMarkdown, tree, textContent, cleanURL } from "./html.ts";
 import { abortable } from "./site-api.ts";
+import { attachmentIdentity, isECDriveAttachment } from "./download.ts";
 import type { Attachment } from "./types.ts";
 export const categories: Partial<Record<PostType, string>> = {
   dev: "개발_스프린트",
@@ -148,9 +153,24 @@ export function renderPost(
     base = m.sourceUrl || "https://logine.ecount.com",
     title = m.title ?? node.key,
     lines = [frontmatter(node), "# " + title, "", "## 내용 요약", ""];
-  const source =
-      (m.sections || []).map((s) => s.html).join(" ") ||
-      node.data.split("\n\n## 게시글 관계\n\n")[0],
+  const missingAreas = [
+    ...(m.failedWidgets || []).map((w) => w.label),
+    ...(m.failedAttachments || []).map((f) =>
+      f.owner === "본문" ? "본문 첨부" : "답글 첨부",
+    ),
+  ];
+  if (missingAreas.length)
+    lines.push(
+      "수집하지 못한 영역: " +
+        [...new Set(missingAreas)].join(", ") +
+        ". /load-context " +
+        node.key +
+        "로 재수집하세요.",
+      "",
+    );
+  const relationStart = node.data.lastIndexOf("\n\n## 게시글 관계\n\n"),
+    body = relationStart >= 0 ? node.data.slice(0, relationStart) : node.data,
+    source = (m.sections || []).map((s) => s.html).join(" ") || body,
     text = textContent(tree(source)).replace(/\s+/g, " ").trim();
   lines.push(
     text
@@ -181,8 +201,7 @@ export function renderPost(
         htmlToMarkdown(r.html, base),
         "",
       );
-  } else
-    lines.push("", "## 본문", "", node.data.split("\n\n## 게시글 관계\n\n")[0]);
+  } else lines.push("", "## 본문", "", body);
   const owned = edges.filter((e) => e.from === node.key && paths.has(e.to)),
     names = {
       belongs_to: "연결 작업",
@@ -220,7 +239,7 @@ interface CatalogPost {
 interface Catalog {
   version: number;
   posts: Record<string, CatalogPost>;
-  entries: Record<string, { nodes: string[] }>;
+  entries: Record<string, { nodes: string[]; only?: true }>;
   indexes?: Record<string, string>;
 }
 export interface ContextSummary {
@@ -324,6 +343,9 @@ export class WorkspaceStore {
   }
   entryPath(k: string) {
     return join(this.internal, "entries", this.slug(k));
+  }
+  onlyIndexPath(k: string) {
+    return join(this.internal, "only", this.slug(k).slice(0, -5), "index.md");
   }
   locations(node: PostNode): [string, string] {
     const job = node.metadata.job,
@@ -450,17 +472,46 @@ export class WorkspaceStore {
     }
     for (const [entry, previous] of entries) {
       const keys = new Set(previous.nodes.map((node) => node.key)),
+        current: Graph = {
+          entryKey: entry,
+          ...(previous.only ? { only: true as const } : {}),
+          nodes: previous.nodes.map((node) => nodes.get(node.key)!),
+          edges: previous.only
+            ? previous.edges
+            : edges.filter((edge) => keys.has(edge.from) && keys.has(edge.to)),
+        },
         graph = validate(
-          canonical({
-            entryKey: entry,
-            nodes: previous.nodes.map((node) => nodes.get(node.key)!),
-            edges: edges.filter(
-              (edge) => keys.has(edge.from) && keys.has(edge.to),
-            ),
-          }),
+          previous.only ? scopeGraph(current) : canonical(current),
         );
-      catalog.entries[entry] = { nodes: [...keys].sort() };
+      catalog.entries[entry] = {
+        nodes: graph.nodes.map((node) => node.key),
+        ...(graph.only ? { only: true as const } : {}),
+      };
       writes.set(this.entryPath(entry), serialize(graph));
+      if (graph.only) {
+        const index = this.onlyIndexPath(entry),
+          data = Buffer.from(
+            [
+              "---",
+              'type: "index"',
+              "number: null",
+              "title: " + quoted(entry + " 수집 범위"),
+              "---",
+              "",
+              "# " + entry + " 수집 범위",
+              "",
+              "선택 게시글과 명시적으로 참조한 게시글만 포함합니다.",
+              "",
+              ...graph.nodes.map(
+                (node) => "- " + link(node.key, index, paths.get(node.key)!),
+              ),
+              "",
+            ].join("\n"),
+          );
+        writes.set(index, data);
+        (catalog.indexes ??= {})[relative(this.directory, index)] =
+          digest(data);
+      }
     }
     writes.set(join(this.internal, "catalog.json"), serialize(catalog));
     return writes;
@@ -599,9 +650,27 @@ export class WorkspaceStore {
           await readFile(await this.safePath(this.nodePath(k)), "utf8"),
         ),
       );
+    const previousEdges = new Map(
+      [...all].map(([entry, node]) => [
+        entry,
+        node.metadata.workspaceEdges || [],
+      ]),
+    );
     const next = structuredClone(graph),
       refreshed = new Set(next.nodes.map((n) => n.key));
-    for (const n of next.nodes) all.set(n.key, n);
+    for (const node of next.nodes) {
+      const knownJob = all.get(node.key)?.metadata.job;
+      // An intentionally skipped ownership widget gives no new evidence to
+      // move a previously grouped post out of its known job folder.
+      if (
+        next.only &&
+        node.metadata.jobWidgetStatus === "skipped" &&
+        !node.metadata.job?.number &&
+        knownJob?.number
+      )
+        node.metadata.job = structuredClone(knownJob);
+      all.set(node.key, node);
+    }
     for (const k of Object.keys(catalog.entries))
       entries.set(
         k,
@@ -631,11 +700,12 @@ export class WorkspaceStore {
         for (const [i, f] of (node.metadata.files || []).entries()) {
           delete f.storedPath;
           delete f.fileHash;
-          const id =
-              f.id ||
-              digest(
-                serialize({ name: f.name, owner: f.owner, index: i }),
-              ).slice(0, 16),
+          const id = isECDriveAttachment(f)
+              ? "ecdrive_" + digest(attachmentIdentity(f)!).slice(0, 24)
+              : f.id ||
+                digest(
+                  serialize({ name: f.name, owner: f.owner, index: i }),
+                ).slice(0, 16),
             target = join(base, component(id), component(f.name || "첨부파일")),
             staging = join(
               temporary,
@@ -669,10 +739,27 @@ export class WorkspaceStore {
           if (f.url) f.url = cleanURL(f.url, node.metadata.sourceUrl || "");
         }
       }
-      for (const k of refreshed)
-        all.get(k)!.metadata.workspaceEdges = next.edges.filter(
-          (e) => e.from === k,
-        );
+      for (const k of refreshed) {
+        const node = all.get(k)!,
+          owner = node.metadata.job?.number
+            ? key({ type: "job", id: node.metadata.job.number })
+            : null,
+          currentEdges = next.edges.filter((edge) => edge.from === k),
+          retained = (previousEdges.get(k) || []).filter(
+            (edge) =>
+              edge.relation !== "belongs_to" || !owner || edge.to === owner,
+          );
+        all.get(k)!.metadata.workspaceEdges = next.only
+          ? [
+              ...new Map(
+                [...retained, ...currentEdges].map((edge) => [
+                  JSON.stringify([edge.from, edge.relation, edge.to]),
+                  edge,
+                ]),
+              ).values(),
+            ]
+          : currentEdges;
+      }
       for (const [path, data] of this.renderWrites(catalog, all, entries))
         writes.set(path, data);
       await this.transaction(writes);
@@ -706,11 +793,9 @@ export class WorkspaceStore {
         entry,
       );
     }
-    const keys = new Set(graph.nodes.map((n) => n.key));
-    graph.edges = graph.nodes
-      .flatMap((n) => n.metadata.workspaceEdges || [])
-      .filter((e) => keys.has(e.from) && keys.has(e.to));
-    return validate(graph);
+    if (!graph.only)
+      graph.edges = graph.nodes.flatMap((n) => n.metadata.workspaceEdges || []);
+    return validate(scopeGraph(graph));
   }
   private async storedNode(entry: string, catalog: Catalog): Promise<PostNode> {
     try {
@@ -765,7 +850,26 @@ export class WorkspaceStore {
     node: PostNode,
     catalog: Catalog,
     nodes = new Map<string, PostNode>(),
+    only = false,
   ): Promise<ContextSummary> {
+    if (only)
+      return {
+        key: node.key,
+        type: node.type,
+        number: node.id,
+        title: node.metadata.title ?? node.key,
+        jobKey:
+          node.type === "job"
+            ? node.key
+            : node.metadata.job?.number
+              ? key({ type: "job", id: node.metadata.job.number })
+              : null,
+        projectCode: node.metadata.job?.projectCode || null,
+        projectTitle:
+          (node.type === "job"
+            ? node.metadata.title
+            : node.metadata.job?.title) || null,
+      };
     const parent = (node.metadata.workspaceEdges || []).find(
         (edge) => edge.from === node.key && edge.relation === "belongs_to",
       )?.to,
@@ -809,7 +913,9 @@ export class WorkspaceStore {
         ),
       });
     return Promise.all(
-      [...nodes.values()].map((node) => this.summary(node, catalog, nodes)),
+      [...nodes.values()].map((node) =>
+        this.summary(node, catalog, nodes, !!catalog.entries[node.key]?.only),
+      ),
     );
   }
   async apply(entry: string) {
@@ -817,11 +923,41 @@ export class WorkspaceStore {
     const catalog = await this.catalog(),
       nodes = new Map<string, PostNode>(),
       pending = [entry];
+    if (catalog.entries[entry]) {
+      const saved = await this.load(entry);
+      if (saved.only) {
+        const description = await this.describeGraph(entry, catalog, saved);
+        catalog.entries[entry] = {
+          nodes: saved.nodes.map((node) => node.key),
+          only: true,
+        };
+        await this.transaction(
+          new Map([
+            [this.entryPath(entry), serialize(saved)],
+            [join(this.internal, "catalog.json"), serialize(catalog)],
+          ]),
+        );
+        return description;
+      }
+      pending.push(
+        ...saved.nodes.map((node) => node.key).filter((key) => key !== entry),
+      );
+    }
+    let jobKey: string | null | undefined;
     while (pending.length) {
       this.signal?.throwIfAborted();
       const next = pending.shift()!;
       if (nodes.has(next)) continue;
+      if (jobKey !== undefined && ref(next).type === "job" && next !== jobKey)
+        continue;
       const node = await this.storedNode(next, catalog);
+      const owner = nodeJobKey(node);
+      if (jobKey === undefined) jobKey = owner;
+      else if (
+        (owner && owner !== jobKey) ||
+        (!owner && node.metadata.jobWidgetStatus === "failed")
+      )
+        continue;
       nodes.set(next, node);
       for (const edge of node.metadata.workspaceEdges || []) {
         if (edge.from !== next)
@@ -830,13 +966,16 @@ export class WorkspaceStore {
       }
     }
     const graph = validate(
-        canonical({
-          entryKey: entry,
-          nodes: [...nodes.values()],
-          edges: [...nodes.values()].flatMap(
-            (node) => node.metadata.workspaceEdges || [],
-          ),
-        }),
+        scopeGraph(
+          {
+            entryKey: entry,
+            nodes: [...nodes.values()],
+            edges: [...nodes.values()].flatMap(
+              (node) => node.metadata.workspaceEdges || [],
+            ),
+          },
+          jobKey,
+        ),
       ),
       description = await this.describeGraph(entry, catalog, graph);
     catalog.entries[entry] = { nodes: graph.nodes.map((node) => node.key) };
@@ -859,12 +998,15 @@ export class WorkspaceStore {
         graph.nodes.find((node) => node.key === entry)!,
         c,
         new Map(graph.nodes.map((node) => [node.key, node])),
+        !!graph.only,
       ),
       item = c.posts[entry],
-      root = this.path(item.rootPath),
+      root = graph.only
+        ? dirname(this.onlyIndexPath(entry))
+        : this.path(item.rootPath),
       files: Array<{ key: string; path: string }> = [],
       scoped = graph.nodes.filter(
-        (node) => c.posts[node.key]?.rootPath === item.rootPath,
+        (node) => graph.only || c.posts[node.key]?.rootPath === item.rootPath,
       );
     const verify = async (path: string, hash?: string) => {
       await this.verifyFile(path, hash, entry);
@@ -896,7 +1038,9 @@ export class WorkspaceStore {
           "게시글별로 다운로드한 첨부 원본 파일 (문서, 이미지, ZIP 등)",
       },
       folders = (
-        await readdir(await this.safePath(root), { withFileTypes: true })
+        graph.only
+          ? []
+          : await readdir(await this.safePath(root), { withFileTypes: true })
       )
         .filter((item) => item.isDirectory() && !item.name.startsWith("."))
         .map((item) => ({
@@ -909,8 +1053,14 @@ export class WorkspaceStore {
         ...new Set([
           "index.md",
           ...files
-            .filter((file) => dirname(file.path) === root)
-            .map((file) => basename(file.path)),
+            .filter((file) => graph.only || dirname(file.path) === root)
+            .map((file) =>
+              graph.only
+                ? file.key +
+                  " → " +
+                  relative(this.directory, file.path).split(sep).join("/")
+                : basename(file.path),
+            ),
         ]),
         ...folders.map((folder) => folder.name + "/"),
       ].sort(),
@@ -926,10 +1076,25 @@ export class WorkspaceStore {
       ),
     );
     const statuses = scoped.flatMap((n) =>
-      (n.metadata.files || []).map((f) => f.downloadStatus || "not_downloaded"),
-    );
+        (n.metadata.files || []).map(
+          (f) => f.downloadStatus || "not_downloaded",
+        ),
+      ),
+      failedWidgets = graph.nodes.flatMap((node) =>
+        (node.metadata.failedWidgets || []).map((widget) => ({
+          post: node.key,
+          ...widget,
+        })),
+      ),
+      failedAttachments = graph.nodes.flatMap((node) =>
+        (node.metadata.failedAttachments || []).map((attachment) => ({
+          post: node.key,
+          ...attachment,
+        })),
+      );
     return {
       entryKey: entry,
+      ...(graph.only ? { only: true as const } : {}),
       type: item.type,
       number: item.number,
       title: item.title,
@@ -952,6 +1117,8 @@ export class WorkspaceStore {
         failed: statuses.filter((s) => s === "download_failed").length,
         notDownloaded: statuses.filter((s) => s === "not_downloaded").length,
       },
+      ...(failedWidgets.length ? { failedWidgets } : {}),
+      ...(failedAttachments.length ? { failedAttachments } : {}),
     };
   }
   async testAccounts(entry: string) {
@@ -983,10 +1150,10 @@ export class WorkspaceSession {
     this.service = service;
     this.downloader = downloader;
   }
-  collect(entry: string) {
+  collect(entry: string, options: CollectionOptions = {}) {
     return this.store.locked(async () => ({
       ...(await this.store.commit(
-        await this.service.collect(entry),
+        await this.service.collect(entry, undefined, options),
         this.downloader,
       )),
       changed: true,
@@ -995,10 +1162,15 @@ export class WorkspaceSession {
   update(entry: string, post?: string, add = false) {
     return this.store.locked(async () => {
       let graph = await this.store.load(entry);
+      const jobKey = graphJobKey(graph);
       if (post) {
         if (!add && !graph.nodes.some((n) => n.key === key(post)))
           throw new ContextError("Node does not exist", key(post));
-        const added = await this.service.collect(post),
+        const added = await this.service.collect(
+            post,
+            graph.only ? undefined : jobKey,
+            { only: !!graph.only },
+          ),
           merged = new Map(
             [...graph.nodes, ...added.nodes].map((n) => [n.key, n]),
           );
@@ -1007,15 +1179,22 @@ export class WorkspaceSession {
             "Traversal node limit exceeded; no partial graph saved",
           );
         const changed = new Set(added.nodes.map((n) => n.key));
-        graph = canonical({
-          entryKey: graph.entryKey,
-          nodes: [...merged.values()],
-          edges: [
-            ...graph.edges.filter((e) => !changed.has(e.from)),
-            ...added.edges,
-          ],
+        graph = scopeGraph(
+          {
+            entryKey: graph.entryKey,
+            ...(graph.only ? { only: true as const } : {}),
+            nodes: [...merged.values()],
+            edges: [
+              ...graph.edges.filter((e) => !changed.has(e.from)),
+              ...added.edges,
+            ],
+          },
+          jobKey,
+        );
+      } else
+        graph = await this.service.collect(entry, undefined, {
+          only: !!graph.only,
         });
-      } else graph = await this.service.collect(entry);
       return {
         ...(await this.store.commit(graph, this.downloader)),
         changed: true,

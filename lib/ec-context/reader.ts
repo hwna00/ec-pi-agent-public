@@ -27,6 +27,7 @@ export interface ReaderArguments {
   entry?: string;
   fixtures?: string;
   noDownloads: boolean;
+  only: boolean;
   maxNodes: number;
   command: string;
   post?: string;
@@ -35,7 +36,8 @@ export function readerArguments(args: string[]): ReaderArguments {
   const rest: string[] = [],
     options: ReaderArguments = {
       noDownloads: false,
-      maxNodes: 100,
+      only: false,
+      maxNodes: Infinity,
       command: "",
     };
   for (let i = 0; i < args.length; i++) {
@@ -45,18 +47,25 @@ export function readerArguments(args: string[]): ReaderArguments {
       if (!value) throw new ContextError("Missing " + a + " value");
       if (a === "--entry") options.entry = key(value);
       else if (a === "--fixtures") options.fixtures = resolve(value);
-      else options.maxNodes = Number(value);
+      else {
+        options.maxNodes = Number(value);
+        if (!Number.isInteger(options.maxNodes) || options.maxNodes < 1)
+          throw new ContextError("Invalid node limit");
+      }
     } else if (a === "--no-downloads") options.noDownloads = true;
-    else if (a === "--recursive") continue;
+    else if (a === "--only") {
+      if (options.only) throw new ContextError("Duplicate --only option");
+      options.only = true;
+    } else if (a === "--recursive") continue;
     else if (a.startsWith("--")) throw new ContextError("Unknown option: " + a);
     else rest.push(a);
   }
-  if (!Number.isInteger(options.maxNodes) || options.maxNodes < 1)
-    throw new ContextError("Invalid node limit");
   if (rest.length < 1 || rest.length > 2)
     throw new ContextError("Expected command and optional post reference");
   options.command = rest[0];
   options.post = rest[1];
+  if (options.only && options.command !== "collect")
+    throw new ContextError("--only is supported only for collect");
   return options;
 }
 export async function runReader(
@@ -105,9 +114,16 @@ export async function runReader(
     }
     if (!browser && !a.fixtures)
       throw new ContextError("Browser connection required; run /ec-connect");
+    const only =
+      a.only ||
+      (["add", "refresh"].includes(a.command) && a.entry
+        ? (await store.locked(() => store.load(a.entry!))).only === true
+        : false);
     const reader = a.fixtures
       ? new FixtureReader(a.fixtures)
-      : new LivePostReader(browser!, join(store.internal, "captures"), signal);
+      : new LivePostReader(browser!, join(store.internal, "captures"), signal, {
+          includeParentJob: !only,
+        });
     const current = async () =>
       a.fixtures
         ? key(
@@ -164,12 +180,11 @@ export async function runReader(
       if (!a.post) throw new ContextError("Post reference required");
       result = await session.collect(
         a.post === "current" ? await current() : key(a.post),
+        { only: a.only },
       );
-    } else if (
-      ["add", "add-context", "refresh", "update-context"].includes(a.command)
-    ) {
+    } else if (["add", "refresh"].includes(a.command)) {
       if (!a.entry) throw new ContextError("--entry is required for updates");
-      const add = ["add", "add-context"].includes(a.command);
+      const add = a.command === "add";
       if (add && !a.post) throw new ContextError("Post reference required");
       result = await session.update(
         a.entry,

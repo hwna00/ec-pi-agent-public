@@ -42,12 +42,34 @@ export interface Attachment {
   type?: string;
   number?: string;
   postKey?: string;
+  storage?: "ecdrive";
+  oid?: string;
+  attach_id?: string;
+  ecdriveHid?: number | string;
+  version?: string;
+  sourceBizzSid?: string;
+  sourceMenuSid?: string;
   [key: string]: unknown;
 }
 export interface ReaderOptions {
   workspace?: boolean;
   signal?: AbortSignal;
   timeout?: number;
+}
+export interface PostReadOptions {
+  includeParentJob?: boolean;
+}
+export interface FailedWidget {
+  section: string;
+  type: string;
+  label: string;
+  code: string;
+}
+export interface FailedAttachment {
+  owner: string;
+  expected: number;
+  collected: number;
+  code: string;
 }
 export interface DownloadOptions {
   signal?: AbortSignal;

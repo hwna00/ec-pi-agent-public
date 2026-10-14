@@ -9,6 +9,8 @@ import {
   attachmentIdentity,
   captureFileURLs,
   downloadURL,
+  downloadECDrive,
+  isECDriveAttachment,
   downloadNative,
   DownloadError,
 } from "./download.ts";
@@ -219,6 +221,8 @@ export class Browser {
         "브라우저 연결이 필요합니다.",
       );
     await this.select(this.pageId);
+    if (isECDriveAttachment(file))
+      return downloadECDrive(this, file, targetPath, options);
     const url = this.#fileURLs.get(attachmentIdentity(file)) || file.url;
     if (url) return downloadURL(this, { ...file, url }, targetPath, options);
     const connection = this.mcp.connection;

@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { ContextError, ParseError, digest } from "./graph.ts";
 import { plainText, tree, walk } from "./html.ts";
+import type { FailedWidget, PostReadOptions } from "./types.ts";
 // ERP field names and widget schemas are discovered at runtime.
 export type Row = Record<string, any>;
 export interface ReaderBrowser {
@@ -211,8 +212,7 @@ export class SiteClient {
     )
       throw failure("server error");
     const data = normalized.Data ?? normalized;
-    if (data?.error || data?.error_info)
-      throw failure("error in Data");
+    if (data?.error || data?.error_info) throw failure("error in Data");
     return data;
   }
 }
@@ -485,6 +485,7 @@ export async function readPost(
   client: SiteClient,
   type: keyof typeof siteTypes,
   number: number,
+  options: PostReadOptions = {},
 ): Promise<Row> {
   const config = siteTypes[type],
     boards = rowsOf(
@@ -584,11 +585,18 @@ export async function readPost(
     ws = widgets(setup);
   if (!ws.length) throw new ContextError("No loadable widgets found");
   await dump(join(client.out, "widgets.json"), ws);
-  let jobWidget: Row = { status: "absent", fields: {} };
+  const skipParentJob = type !== "job" && options.includeParentJob === false;
+  let jobWidget: Row = {
+    status: skipParentJob ? "skipped" : "absent",
+    fields: {},
+  };
   const all: Row[] = [],
     replyRows = new Map<string, Row>(),
-    related: Row[] = [];
+    related: Row[] = [],
+    failedWidgets: FailedWidget[] = [];
   for (const w of ws) {
+    if (skipParentJob && (w.job_form || w.info.bizz_sid === siteTypes.job.bizz))
+      continue;
     if (
       !w.body_props.length &&
       !["comment", "form"].includes(w.type) &&
@@ -607,14 +615,41 @@ export async function readPost(
         type: "range",
         value: { from: date, to: date },
       };
-    const records =
-      w.type === "form"
-        ? rowsOf(await client.post("widget", payload, w.section))
-        : await collectPages(client, "widget", payload, w.section),
-      rows =
-        w.type === "comment"
-          ? records.filter((x) => pick(x, "status_type") !== "D")
-          : records;
+    let records: Row[];
+    try {
+      records =
+        w.type === "form"
+          ? rowsOf(await client.post("widget", payload, w.section))
+          : await collectPages(client, "widget", payload, w.section);
+    } catch (error) {
+      client.signal?.throwIfAborted();
+      if (error instanceof Error && error.name === "AbortError") throw error;
+      const board = Object.values(siteTypes).find(
+        (board) => board.bizz === w.info.bizz_sid,
+      )?.name;
+      failedWidgets.push({
+        section: w.section,
+        type: w.type,
+        label:
+          w.type === "list"
+            ? `${board || "관련 게시글"} 목록`
+            : w.type === "comment"
+              ? "답글"
+              : w.type === "form"
+                ? w.job_form
+                  ? "연결 작업"
+                  : "기본 정보"
+                : "본문",
+        code: error instanceof ContextError ? error.code : "request_failed",
+      });
+      if (w.job_form && jobWidget.status === "absent")
+        jobWidget = { status: "failed", fields: {} };
+      continue;
+    }
+    const rows =
+      w.type === "comment"
+        ? records.filter((x) => pick(x, "status_type") !== "D")
+        : records;
     if (w.job_form) {
       if (rows.length > 1)
         throw new ParseError("Connected job widget returned multiple records");
@@ -628,7 +663,7 @@ export async function readPost(
           "Connected job widget response is missing its number field",
         );
       if (
-        jobWidget.status !== "absent" &&
+        !["absent", "failed"].includes(jobWidget.status) &&
         JSON.stringify(jobWidget.fields) !== JSON.stringify(fields)
       )
         throw new ParseError("Conflicting connected job widgets");
@@ -689,7 +724,7 @@ export async function readPost(
     body = values.filter((x) => x.role === "body"),
     replies = values.filter((x) => x.role === "reply"),
     expected = Number(pick(row, "reply_cnt", 0) || 0);
-  if (!body.length)
+  if (!body.length && !failedWidgets.some((w) => w.type === "editor"))
     throw new ContextError(
       "Body field missing; refusing empty body as success",
     );
@@ -698,8 +733,9 @@ export async function readPost(
     .map((x) => pick(x, "record_sid"))
     .filter((x) => x !== context.record_sid);
   if (
-    replyRows.size !== expected ||
-    expectedIDs.some((id) => !replyRows.has(id))
+    !failedWidgets.some((w) => w.type === "comment") &&
+    (replyRows.size !== expected ||
+      expectedIDs.some((id) => !replyRows.has(id)))
   )
     throw new ContextError("Reply completeness mismatch");
   if (
@@ -720,6 +756,7 @@ export async function readPost(
     replies,
     linked: values.filter((x) => x.role === "linked"),
     reply_records: [...replyRows.values()],
+    ...(failedWidgets.length ? { failed_widgets: failedWidgets } : {}),
   };
   await dump(join(client.out, "post.json"), post);
   return post;

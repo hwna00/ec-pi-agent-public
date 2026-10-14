@@ -28,7 +28,34 @@ const querySecrets = new Set([
   "xce",
 ]);
 
+export function isECDriveAttachment(file) {
+  return (
+    file.storage === "ecdrive" ||
+    String(file.link_type) === "98" ||
+    String(file.provider_seq) === "98" ||
+    file.bizz_sid === "B_000000E077100" ||
+    file.to_bizz_sid === "B_000000E077100"
+  );
+}
+export function ecDriveOID(file): string | undefined {
+  const oid =
+    file.oid ??
+    file.oID ??
+    file.attach_id ??
+    (file.storage === "ecdrive" ? file.id : undefined);
+  return typeof oid === "string" && oid.trim() ? oid : undefined;
+}
 export function attachmentIdentity(file) {
+  if (isECDriveAttachment(file)) {
+    const oid = ecDriveOID(file);
+    return oid === undefined
+      ? undefined
+      : JSON.stringify([
+          "ecdrive",
+          oid,
+          String(file.version ?? file.VERSION ?? ""),
+        ]);
+  }
   const id = file.file_id ?? file.id;
   return id == null
     ? undefined
@@ -53,7 +80,7 @@ export function captureFileURLs(
   if (
     file ||
     (inline &&
-      value.file_id &&
+      (value.file_id || isECDriveAttachment(value)) &&
       !value.BOARD_NUM &&
       !value.data_no &&
       (value.name || value.attach_name || value.file_name))
@@ -153,23 +180,111 @@ export async function downloadURL(
     url.password
   )
     fail("download_url_invalid", "확인된 이카운트 첨부 파일 URL이 필요합니다.");
+  return streamDownload(
+    browser,
+    file,
+    targetPath,
+    { signal },
+    { url: url.href },
+  );
+}
+
+// Follow the ERP's ECDrive flow. Tokens and signed URLs stay in the page realm.
+export async function downloadECDrive(
+  browser,
+  file,
+  targetPath,
+  options: DownloadOptions = {},
+) {
+  options.signal?.throwIfAborted();
+  const oid = ecDriveOID(file);
+  if (
+    !isECDriveAttachment(file) ||
+    !oid ||
+    !file.name ||
+    !file.sourceBizzSid ||
+    !file.sourceMenuSid
+  )
+    fail(
+      "ecdrive_metadata_invalid",
+      "ECDrive 파일과 원본 게시글의 식별 정보가 필요합니다.",
+    );
+  return streamDownload(browser, file, targetPath, options, {
+    ecdrive: {
+      oid,
+      name: file.name,
+      size: file.size,
+      version: file.version,
+      dataSid: file.dataSid,
+      bizzSid: file.sourceBizzSid,
+      menuSid: file.sourceMenuSid,
+    },
+  });
+}
+
+async function streamDownload(
+  browser,
+  file,
+  targetPath,
+  { signal, timeout = 120000 }: DownloadOptions,
+  source,
+) {
+  signal?.throwIfAborted();
   const marker = `ec-download-${randomUUID()}`;
   const request = {
     origin: browser.origin,
     sid: browser.sid,
-    url: url.href,
+    ...source,
     marker,
+    timeout,
   };
   const started = await browser.evaluate(`async () => {
     const r=${JSON.stringify(request)},u=new URL(location.href);
     if(u.origin!==r.origin || u.searchParams.get('ec_req_sid')!==r.sid) return {error:'session_changed'};
     try {
-      const response=await fetch(r.url,{credentials:'include',redirect:'error',signal:AbortSignal.timeout(120000)});
+      let url=r.url;
+      if(r.ecdrive) {
+        const f=r.ecdrive, runtime=globalThis.$ECount, common=globalThis.ecount?.common;
+        if(typeof runtime?.apiAsync!=='function' || typeof common?.api!=='function') return {error:'ecdrive_api_unavailable'};
+        const bounded=async (operation,code) => {
+          let timer;
+          try {return await Promise.race([operation,new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error(code)),r.timeout);})]);}
+          finally {clearTimeout(timer);}
+        };
+        try {
+          await bounded(runtime.apiAsync({
+            version:'V5', method:'POST', credentials:'include',
+            url:'/api/app.common/action/CheckFileSecurityAction:board:view',
+            data:{type:'download',file_info:[{name:f.name,size:f.size,owner_key:f.oid,ecdrive_file_yn:'Y',data_sid:f.dataSid}],ec_page_id:r.marker.slice('ec-download-'.length),max_file_size:0,bizz_sid:f.bizzSid,menu_sid:f.menuSid},
+            onError:()=>{},
+          }), 'ecdrive_security_timeout');
+        } catch {return {error:'ecdrive_security_failed'};}
+        const api=(path,data,code)=>bounded(new Promise((resolve,reject)=>{
+          common.api({url:path,data,success:result=>{
+            if(!result || (result.Status!==undefined && Number(result.Status)!==200)) reject(new Error(code));
+            else resolve(result);
+          },error:()=>reject(new Error(code))});
+        }),code);
+        let auth,descriptor;
+        try {auth=await api('/SVC/Groupware/ECDrive/AuthToken',{ACTION:'FILEDOWNLOAD',DATA:JSON.stringify({VERSION:f.version,OID:f.oid,NAME:f.name})},'ecdrive_auth_failed');}
+        catch {return {error:'ecdrive_auth_failed'};}
+        if(typeof auth.Data?.AUTHTOKEN!=='string' || !auth.Data.AUTHTOKEN) return {error:'ecdrive_auth_invalid'};
+        try {descriptor=await api('/SVC/Groupware/ECDrive/ExternalTask',{TOKEN:auth.Data.AUTHTOKEN},'ecdrive_file_info_failed');}
+        catch {return {error:'ecdrive_file_info_failed'};}
+        try {
+          const resolved=new URL(descriptor.Data?.URL);
+          if(resolved.protocol!=='https:' || resolved.username || resolved.password) return {error:'ecdrive_url_invalid'};
+          url=resolved.href;
+        }catch{return {error:'ecdrive_url_invalid'};}
+        const current=new URL(location.href);
+        if(current.origin!==r.origin || current.searchParams.get('ec_req_sid')!==r.sid) return {error:'session_changed'};
+      }
+      const response=await fetch(url,{credentials:'include',redirect:r.ecdrive?'follow':'error',signal:AbortSignal.timeout(r.timeout)});
       if(!response.ok) return {error:'download_http_error',status:response.status};
       if(!response.body) return {error:'download_empty_response'};
       const type=response.headers.get('content-type') || '';
       if(type.includes('text/html') && !${JSON.stringify(/\.html?$/i.test(file.name || ""))}) return {error:'download_html_response'};
-      Object.defineProperty(globalThis,r.marker,{value:{reader:response.body.getReader(),buffer:new Uint8Array(),offset:0},configurable:true});
+      Object.defineProperty(globalThis,r.marker,{value:{reader:response.body.getReader(),buffer:new Uint8Array(),offset:0,done:false},configurable:true});
       return {ok:true};
     } catch { return {error:'download_request_failed'}; }
   }`);
@@ -179,6 +294,7 @@ export async function downloadURL(
       "첨부 파일 요청에 실패했습니다.",
     );
   try {
+    signal?.throwIfAborted();
     return await atomicDownload(
       targetPath,
       async (temporary) => {
@@ -191,13 +307,21 @@ export async function downloadURL(
             if(u.origin!==r.origin || u.searchParams.get('ec_req_sid')!==r.sid) return {error:'session_changed'};
             const state=globalThis[r.marker];if(!state) return {error:'download_state_missing'};
             try {
-              if(state.offset===state.buffer.length) {
-                const next=await state.reader.read();if(next.done) return {done:true};
-                state.buffer=next.value;state.offset=0;
+              const block=new Uint8Array(131072);let size=0;
+              while(size<block.length) {
+                if(state.offset===state.buffer.length) {
+                  if(state.done) break;
+                  const next=await state.reader.read();
+                  if(next.done){state.done=true;break;}
+                  state.buffer=next.value;state.offset=0;
+                }
+                const count=Math.min(block.length-size,state.buffer.length-state.offset);
+                block.set(state.buffer.subarray(state.offset,state.offset+count),size);
+                size+=count;state.offset+=count;
               }
-              const end=Math.min(state.offset+131072,state.buffer.length);let text='';
-              for(let i=state.offset;i<end;i++) text+=String.fromCharCode(state.buffer[i]);
-              state.offset=end;return {data:btoa(text)};
+              if(!size && state.done) return {done:true};
+              let text='';for(let i=0;i<size;i++) text+=String.fromCharCode(block[i]);
+              return {data:btoa(text)};
             } catch { return {error:'download_stream_failed'}; }
           }`);
             if (chunk.error)

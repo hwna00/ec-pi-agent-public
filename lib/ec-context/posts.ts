@@ -31,7 +31,17 @@ import {
   type Row,
   type ReaderBrowser,
 } from "./site-api.ts";
-import type { Attachment, TestAccount } from "./types.ts";
+import type {
+  Attachment,
+  TestAccount,
+  FailedAttachment,
+  PostReadOptions,
+} from "./types.ts";
+import {
+  attachmentIdentity,
+  isECDriveAttachment,
+  ecDriveOID,
+} from "./download.ts";
 const referenceTypes = new Map<string, PostType>(
   Object.entries(siteTypes).map(([t, c]) => [c.bizz, t as PostType]),
 );
@@ -58,7 +68,8 @@ export function jobInformation(
     row = widget?.fields || post.metadata,
     status =
       widget?.status || (jobPrefix + "data_no" in row ? "present" : "absent");
-  if (status === "absent") return { job: null, status };
+  if (["absent", "failed", "skipped"].includes(status))
+    return { job: null, status };
   const job = {
     number: nullable(row[jobPrefix + "data_no"]),
     title: nullable(row[jobPrefix + "title_ctt"]),
@@ -144,12 +155,13 @@ export function attachmentItems(value: any): Row[] {
   return value;
 }
 export function attachmentRef(item: Row): PostRef | null {
+  if (isECDriveAttachment(item)) return null;
   const sid = item.bizz_sid,
     number = item.BOARD_NUM ?? item.data_no;
   if (
     number == null &&
     (Array.isArray(item.file_info_list) ||
-      (item.link_type === "01" && item.file_id))
+      (item.link_type === "01" && (item.file_id ?? item.id) != null))
   )
     return null;
   if (!sid && number == null) return null;
@@ -163,6 +175,50 @@ export function attachmentRef(item: Row): PostRef | null {
   if (number == null)
     throw new ParseError("Attached post has no display number");
   return ref({ type, id: String(number) });
+}
+function attachmentFiles(item: Row): Row[] {
+  const files =
+    item.file_info_list ??
+    (isECDriveAttachment(item) || (item.file_id ?? item.id) != null
+      ? [item]
+      : []);
+  if (
+    !Array.isArray(files) ||
+    files.some(
+      (file) => !file || typeof file !== "object" || Array.isArray(file),
+    )
+  )
+    throw new ParseError("Invalid file attachment metadata");
+  if (files.some((file) => attachmentIdentity(file) === undefined))
+    throw new ParseError("File attachment ID missing");
+  return files;
+}
+export function mergeAttachmentItems(
+  existing: Row[],
+  additional: Row[],
+): Row[] {
+  const merged = new Map<string, Row>();
+  for (const item of [...existing, ...additional]) {
+    const post = attachmentRef(item);
+    if (post) {
+      const identity = JSON.stringify(["post", key(post)]);
+      merged.set(identity, { ...merged.get(identity), ...item });
+      continue;
+    }
+    for (const file of attachmentFiles(item)) {
+      const identity = JSON.stringify(["file", attachmentIdentity(file)]),
+        previous = merged.get(identity);
+      merged.set(identity, {
+        ...previous,
+        ...item,
+        file_info_list: [{ ...previous?.file_info_list[0], ...file }],
+      });
+    }
+  }
+  return [...merged.values()];
+}
+export function attachmentCount(items: Row[]): number {
+  return mergeAttachmentItems([], items).length;
 }
 function htmlPostRefs(source: string): PostRef[] {
   const found: PostRef[] = [];
@@ -347,14 +403,10 @@ export function capturedToRaw(
         attached.push(ar);
         continue;
       }
-      const values = item.file_info_list ?? (item.file_id ? [item] : []);
-      if (
-        !Array.isArray(values) ||
-        values.some((x) => !x || typeof x !== "object")
-      )
-        throw new ParseError("Invalid file attachment metadata");
+      const values = attachmentFiles(item);
       for (const file of values) {
-        const id = file.file_id ?? file.id;
+        const ecdrive = isECDriveAttachment(file),
+          id = ecdrive ? ecDriveOID(file) : (file.file_id ?? file.id);
         if (id == null) throw new ParseError("File attachment ID missing");
         const row = owner === "본문" ? post.metadata : records.get(owner) || {},
           metadata: Attachment = Object.fromEntries(
@@ -370,6 +422,30 @@ export function capturedToRaw(
               .filter((k) => k in file)
               .map((k) => [k, file[k]]),
           );
+        if (ecdrive)
+          Object.assign(metadata, {
+            storage: "ecdrive",
+            oid: String(id),
+            owner_key: String(id),
+            sourceBizzSid: siteTypes[type].bizz,
+            sourceMenuSid: siteTypes[type].view,
+            ...Object.fromEntries(
+              [
+                "attach_id",
+                "conn_sid",
+                "bizz_sid",
+                "to_bizz_sid",
+                "isexists",
+                "status",
+              ]
+                .filter((name) => name in file)
+                .map((name) => [name, file[name]]),
+            ),
+            ecdriveHid: file.hid ?? file.HID,
+            ...(file.version !== undefined || file.VERSION !== undefined
+              ? { version: String(file.version ?? file.VERSION) }
+              : {}),
+          });
         Object.assign(metadata, {
           id: String(id),
           name: String(
@@ -402,7 +478,12 @@ export function capturedToRaw(
     }
   }
   const blocks = [
-    "<h1>" + escapeHTML(post.title || "") + "</h1>",
+    "<h1>" +
+      escapeHTML(
+        post.title ||
+          (post.failed_widgets?.length ? type + ":" + post.number : ""),
+      ) +
+      "</h1>",
     ...sections.map((s) => "<h2>" + escapeHTML(s.label) + "</h2>" + s.html),
     ...replies.map(
       (s) =>
@@ -423,6 +504,9 @@ export function capturedToRaw(
     sections,
     replies,
     files,
+    ...(post.failed_widgets?.length
+      ? { failedWidgets: post.failed_widgets }
+      : {}),
     content: blocks.join("\n"),
     relations: {
       attachedPosts: refs(attached),
@@ -437,11 +521,18 @@ export class LivePostReader implements PostReader {
   browser: ReaderBrowser;
   artifacts: string;
   signal?: AbortSignal;
+  options: PostReadOptions;
   related = new Map<string, PostRef[]>();
-  constructor(browser: ReaderBrowser, artifacts: string, signal?: AbortSignal) {
+  constructor(
+    browser: ReaderBrowser,
+    artifacts: string,
+    signal?: AbortSignal,
+    options: PostReadOptions = {},
+  ) {
     this.browser = browser;
     this.artifacts = artifacts;
     this.signal = signal;
+    this.options = options;
   }
   async readById(type: PostType, id: string): Promise<RawPost> {
     const r = ref({ type, id }),
@@ -454,45 +545,64 @@ export class LivePostReader implements PostReader {
       this.signal,
     );
     try {
-      const post = await readPost(client, type, Number(id)),
-        attachments: Record<string, Row[]> = {};
+      const post = await readPost(client, type, Number(id), this.options),
+        attachments: Record<string, Row[]> = {},
+        failedAttachments: FailedAttachment[] = [];
       for (const [label, row] of [
         ["본문", post.metadata],
         ...post.reply_records.map((x) => [String(pick(x, "record_sid")), x]),
       ] as Array<[string, Row]>) {
-        const count = Number(pick(row, "slip_link_cnt", 0) || 0),
-          inline = attachmentItems(pick(row, "slip_link"));
-        if (inline.length >= count) {
-          if (inline.length) attachments[label] = inline;
-          continue;
-        }
-        if (!count) continue;
-        const hid = pick(row, "hid");
-        if (!hid)
-          throw new ParseError("Attachment count present but hid missing", k);
-        const config = siteTypes[type],
-          data = await client.post(
-            "attachments",
-            {
-              prg_id: config.bizz.split("_").at(-1)!.replace(/^0+/, ""),
-              form_type: "",
-              attach_types: ["05"],
-              attach_exception_group: "",
-              hid,
-              seq_no: 0,
-              bizz_sid: config.bizz,
-              data_sid: pick(row, "data_sid", post.identifiers.data_sid),
-              record_sid: pick(row, "record_sid"),
-            },
-            label,
-          ),
-          items = attachmentItems(data);
-        if (items.length < count)
-          throw new ParseError(
-            "Attachment response shorter than declared count",
-            k,
+        const count = Number(pick(row, "slip_link_cnt", 0) || 0);
+        let items: Row[] = [],
+          code: string | undefined;
+        try {
+          items = mergeAttachmentItems(
+            [],
+            attachmentItems(pick(row, "slip_link")),
           );
-        attachments[label] = items;
+          if (attachmentCount(items) < count) {
+            const hid = pick(row, "hid");
+            if (!hid)
+              throw new ParseError(
+                "Attachment count present but hid missing",
+                k,
+              );
+            const config = siteTypes[type],
+              data = await client.post(
+                "attachments",
+                {
+                  prg_id: config.bizz.split("_").at(-1)!.replace(/^0+/, ""),
+                  form_type: "",
+                  attach_types: ["01", "05", "98"],
+                  attach_exception_group: "",
+                  hid,
+                  seq_no: 0,
+                  bizz_sid: config.bizz,
+                  data_sid: pick(row, "data_sid", post.identifiers.data_sid),
+                  record_sid: pick(row, "record_sid"),
+                },
+                label,
+              );
+            items = mergeAttachmentItems(items, attachmentItems(data));
+            if (attachmentCount(items) < count) code = "attachment_incomplete";
+          }
+        } catch (error) {
+          this.signal?.throwIfAborted();
+          if (error instanceof Error && error.name === "AbortError")
+            throw error;
+          code =
+            error instanceof ContextError
+              ? error.code
+              : "attachment_read_failed";
+        }
+        if (items.length) attachments[label] = items;
+        if (code)
+          failedAttachments.push({
+            owner: label,
+            expected: count,
+            collected: attachmentCount(items),
+            code,
+          });
       }
       const raw = capturedToRaw(post, attachments, client.origin),
         setupMetric = client.metrics.find((x) => x.api === "setup");
@@ -500,6 +610,7 @@ export class LivePostReader implements PostReader {
         await readFile(join(client.out, setupMetric!.artifact), "utf8"),
       );
       raw.testServers = extractTestServers(post, setup);
+      if (failedAttachments.length) raw.failedAttachments = failedAttachments;
       raw.ref = r;
       if (type === "job") raw.job!.number = id;
       for (const file of raw.files || [])

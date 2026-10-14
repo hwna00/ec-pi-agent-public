@@ -95,6 +95,12 @@ export function contextPrompt(description, cwd = process.cwd()) {
       : []),
     "진행중인 작업의 맥락은 아래 경로에서 확인하세요.",
     `컨텍스트 저장 루트: ${contextRoot.split(sep).join("/")}`,
+    ...(description.only
+      ? [
+          "수집 범위: 선택한 게시글과 명시적으로 참조한 게시글만 포함합니다. 상위 작업 관계는 수집하지 않았습니다.",
+          "전용 index.md에 기록된 게시글만 맥락으로 사용하세요. 본문의 상위 작업이나 추가 링크로 범위를 넓히지 마세요.",
+        ]
+      : []),
     "",
     description.tree,
     "",

@@ -58,7 +58,8 @@ export default function contextGraph(
     if (!entry) throw new Error("먼저 /apply-context로 게시글을 선택하세요.");
     return entry;
   }
-  async function connect(ctx: any, edit = false) {
+  async function connect(ctx: any, { edit = false, automatic = false } = {}) {
+    if (automatic) browser = null;
     let account = readJSON(accountPath)?.account;
     if (edit) {
       account = await loginAccount(undefined, {
@@ -69,7 +70,7 @@ export default function contextGraph(
       privateJSON(accountPath, { version: 1, account });
     }
     const candidates = await getPool(ctx).discover();
-    if (!candidates.length) {
+    if (!automatic && !candidates.length) {
       account = await loginAccount(account, {
         input: (label: string, secret: boolean) =>
           secret ? askSecret(ctx.ui, label) : ctx.ui.input(label),
@@ -90,20 +91,31 @@ export default function contextGraph(
         label: `${loginBrowser.id} · 탭 ${page.id} · ${new URL(page.url).hostname}`,
       });
     }
-    const saved = candidates.filter(
-      (c: any) => c.page.id === c.browser.savedPageId,
-    );
-    let candidate = saved.length === 1 ? saved[0] : candidates[0];
-    if (saved.length !== 1 && candidates.length > 1) {
-      const labels = candidates.map(
-        (c: any, i: number) => `${i + 1}. ${c.label}`,
+    let candidate: any;
+    if (automatic) {
+      candidate = candidates.find(
+        (c: any) => new URL(c.page.url).hostname === "logine.ecount.com",
       );
-      const selected = await ctx.ui.select(
-        "연결할 이카운트 탭 (브라우저 / 탭 / 호스트)",
-        labels,
+      if (!candidate)
+        throw new Error(
+          "logine.ecount.com의 로그인된 ERP 탭이 없어 수집을 중단했습니다.",
+        );
+    } else {
+      const saved = candidates.filter(
+        (c: any) => c.page.id === c.browser.savedPageId,
       );
-      if (!selected) return false;
-      candidate = candidates[labels.indexOf(selected)];
+      candidate = saved.length === 1 ? saved[0] : candidates[0];
+      if (saved.length !== 1 && candidates.length > 1) {
+        const labels = candidates.map(
+          (c: any, i: number) => `${i + 1}. ${c.label}`,
+        );
+        const selected = await ctx.ui.select(
+          "연결할 이카운트 탭 (브라우저 / 탭 / 호스트)",
+          labels,
+        );
+        if (!selected) return false;
+        candidate = candidates[labels.indexOf(selected)];
+      }
     }
     await candidate.browser.connect(candidate.page);
     // URL alone is insufficient: test the authenticated read-only API.
@@ -140,8 +152,28 @@ export default function contextGraph(
     );
     return true;
   }
-  async function ensureBrowser(ctx: any) {
-    return browser || ((await connect(ctx)) ? browser : null);
+  function notifyCollectionFailures(result: any, entry: string, ctx: any) {
+    const areas = [
+      ...new Set<string>(
+        [
+          ...(result.failedWidgets || []).map(
+            (widget: any) => `${widget.post} ${widget.label}`,
+          ),
+          ...(result.failedAttachments || []).map(
+            (attachment: any) =>
+              `${attachment.post} ${attachment.owner === "본문" ? "본문 첨부" : "답글 첨부"}`,
+          ),
+        ].map((area) => area.replace(/\s+/g, " ")),
+      ),
+    ];
+    if (!areas.length) return;
+    const summary =
+      areas.slice(0, 3).join(", ") +
+      (areas.length > 3 ? ` 외 ${areas.length - 3}개` : "");
+    ctx.ui.notify(
+      `일부 영역 수집 실패 (${summary}). /load-context ${entry}로 재수집하세요.`,
+      "warning",
+    );
   }
   function command(
     name: string,
@@ -181,20 +213,38 @@ export default function contextGraph(
       if (args.trim() && args.trim() !== "--edit")
         throw new Error("/ec-connect [--edit]");
       browser = null;
-      await connect(ctx, args.trim() === "--edit");
+      await connect(ctx, { edit: args.trim() === "--edit" });
     },
   );
   async function collect(args: string, ctx: any) {
-    const entry = parseReference(args);
-    const connected = await ensureBrowser(ctx);
+    const sessionId = ctx.sessionManager.getSessionId();
+    const leafId = ctx.sessionManager.getLeafId?.();
+    const tokens = args.trim().split(/\s+/).filter(Boolean);
+    const only = tokens[0] === "--only";
+    if (only) tokens.shift();
+    if (tokens.some((token) => token.startsWith("--")))
+      throw new Error("/load-context [--only] type:number 또는 type number");
+    let entry: string;
+    try {
+      entry = parseReference(tokens.join(" "));
+    } catch (error) {
+      throw new Error(
+        `${error instanceof Error ? error.message : String(error)}\n/load-context [--only] type:number 또는 type number`,
+      );
+    }
+    const connected = (await connect(ctx, { automatic: true }))
+      ? browser
+      : null;
     if (!connected) return;
     ctx.ui.notify(`${entry} 및 관련 게시글 수집 중…`, "info");
     const result = JSON.parse(
       await readStore(
         ctx,
         [
-          "--max-nodes",
-          String(config().maxNodes || 100),
+          ...(only ? ["--only"] : []),
+          ...(config().maxNodes === undefined
+            ? []
+            : ["--max-nodes", String(config().maxNodes)]),
           ...(config().downloadAttachments === false ? ["--no-downloads"] : []),
           "collect",
           entry,
@@ -204,21 +254,28 @@ export default function contextGraph(
     );
     if (stopped) return;
     ctx.ui.notify(
-      `${entry}: ${result.nodes}개 게시글, ${result.edges}개 관계 저장 완료. /apply-context로 세션에 적용하세요.\n${result.entryPath || result.context}`,
+      `${entry}: ${result.nodes}개 게시글, ${result.edges}개 관계 저장 완료.\n${result.entryPath || result.context}`,
       "info",
     );
+    notifyCollectionFailures(result, entry, ctx);
     if (result.attachments?.failed)
       ctx.ui.notify(
         `첨부 파일 ${result.attachments.failed}개 다운로드 실패. 게시글의 첨부 상태를 확인하세요.`,
         "warning",
       );
+    if (
+      ctx.sessionManager.getSessionId() !== sessionId ||
+      ctx.sessionManager.getLeafId?.() !== leafId
+    )
+      return;
+    applyContext(pi, ctx, result);
+    ctx.ui.notify(`${entry}: 현재 세션에 적용 완료.`, "info");
   }
   command(
     "load-context",
-    "게시판과 번호로 관련 게시글 수집 (예: tp:12345, dev 22643)",
+    "관련 게시글 수집 후 적용 (--only: 상위 작업 제외, 예: --only tp:12345)",
     collect,
   );
-  command("collect-context", "load-context 별칭", collect);
   command(
     "apply-context",
     "저장된 맥락을 현재 세션에 적용 (번호 생략 시 선택, default: 해제)",
@@ -248,45 +305,6 @@ export default function contextGraph(
       }
     },
   );
-  for (const [name, action] of [
-    ["add-context", "add"],
-    ["update-context", "refresh"],
-  ]) {
-    command(name, "기존 컨텍스트에 게시글 추가 / 갱신", async (args, ctx) => {
-      const entry = selected(ctx);
-      const connected = await ensureBrowser(ctx);
-      if (!connected) return;
-      const value = args.trim() ? parseReference(args) : undefined;
-      if (action === "add" && !value)
-        throw new Error("type:number를 입력하세요.");
-      const result = JSON.parse(
-        await readStore(
-          ctx,
-          [
-            "--entry",
-            entry,
-            "--max-nodes",
-            String(config().maxNodes || 100),
-            ...(config().downloadAttachments === false
-              ? ["--no-downloads"]
-              : []),
-            action,
-            ...(value ? [value] : []),
-          ],
-          connected,
-        ),
-      );
-      ctx.ui.notify(
-        `${result.nodes}개 게시글, ${result.edges}개 관계. ${result.changed ? "컨텍스트 갱신 완료" : "변경 없음"}`,
-        "info",
-      );
-      if (result.attachments?.failed)
-        ctx.ui.notify(
-          `첨부 파일 ${result.attachments.failed}개 다운로드 실패. 게시글의 첨부 상태를 확인하세요.`,
-          "warning",
-        );
-    });
-  }
   command(
     "test-server",
     "선택한 게시글의 테스트 계정으로 test / zeus / stage 열기",
@@ -365,7 +383,7 @@ export default function contextGraph(
       };
     } catch (error) {
       ctx.ui.notify(
-        `${entry}의 저장된 맥락을 읽지 못했습니다. /load-context로 다시 수집한 뒤 /apply-context로 적용하세요.`,
+        `${entry}의 저장된 맥락을 읽지 못했습니다. /load-context ${entry}로 다시 수집하고 적용하세요.`,
         "warning",
       );
       throw error;

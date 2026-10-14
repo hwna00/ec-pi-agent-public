@@ -1,0 +1,34 @@
+const fs = require('fs');
+const file = '@source/server/@test-modules/modules/definition.@test/src/model_customizer/process_definition.spec.ts';
+let s = fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n');
+const helperStart = s.indexOf('function sameDefinitionInstance(');
+const testStart = s.indexOf('for (const model_id of MODEL_IDS) {');
+const header = s.slice(0, helperStart);
+const helpers = s.slice(helperStart, testStart).trimEnd();
+const tests = s.slice(testStart).trimEnd();
+s = header + '// 테스트: 모델별 계약과 반복 조회의 원본/캐시 보존을 확인한다.\n' + tests + '\n\n// 공통 helper: 참조/내용 비교와 실제 조립 경로를 사용하는 fixture.\n' + helpers + '\n';
+function replace(oldText, newText) {
+ const first = s.indexOf(oldText);
+ if (first < 0 || s.indexOf(oldText, first + oldText.length) >= 0) throw Error('nonunique replacement: '+oldText);
+ s = s.replace(oldText, newText);
+}
+replace('\t\t\tconst before = signature(source);\n\t\t\tconst alias', '\t\t\tconst before = signature(source);\n\n\t\t\t// 참조 비교가 alias와 내용이 같은 별도 clone을 구분하는지 확인한다.\n\t\t\tconst alias');
+replace('\t\t\tconst resolved = resolveModelCustomizeContext', '\n\t\t\t// 등록된 source/Master 계약과 실제 full definition 조회를 확인한다.\n\t\t\tconst resolved = resolveModelCustomizeContext');
+replace('\t\t\tfor (const [prop_id, meaning, original_type, condition_type]', '\n\t\t\t// 대표 항목의 타입, 의미, 참조 계약을 확인한다.\n\t\t\tfor (const [prop_id, meaning, original_type, condition_type]');
+replace('\t\t\tAssert.equal(cache.size, 1);', '\n\t\t\t// 반환 인스턴스는 분리되고 조립 캐시와 원본 내용은 보존되어야 한다.\n\t\t\tAssert.equal(cache.size, 1);');
+replace('\t\t\tconst first = new Map<ProcessModelId, $ModelDefinition<any>>();', '\n\t\t\t// 지정 순서로 최초 조회 결과와 내용을 저장한다.\n\t\t\tconst first = new Map<ProcessModelId, $ModelDefinition<any>>();');
+replace('\t\t\tfor (const model_id of [...order].reverse()) {', '\n\t\t\t// 역순 재조회도 별도 인스턴스를 반환하고 최초 내용을 유지해야 한다.\n\t\t\tfor (const model_id of [...order].reverse()) {');
+replace('\t\t\tAssert.equal(cache.size, 2);', '\n\t\t\t// 조회 순서와 반복 횟수가 조립 캐시와 원본을 바꾸지 않아야 한다.\n\t\t\tAssert.equal(cache.size, 2);');
+replace('\t\t\tAssert.equal(\n\t\t\t\tArray.from(cache.values(), (assembled) => signature(assembled.def)),\n\t\t\t\tcache_before\n\t\t\t);', '\t\t\tAssert.equal(Array.from(cache.values(), (assembled) => signature(assembled.def)), cache_before);');
+replace('function signature(def: $ModelDefinition<any>): string {', '// 참조 비교와 별개로 prop 내용을 정렬하여 비교한다.\nfunction signature(def: $ModelDefinition<any>): string {');
+replace('\tconst base = getTestContext();', '\t// 등록된 업무/메뉴를 준비한다.\n\tconst base = getTestContext();');
+replace('\tconst scope_context = base as IExecutionContext & {', '\n\tconst scope_context = base as IExecutionContext & {');
+replace('\t// BaseProgram이 실제 scope', '\n\t// BaseProgram이 실제 scope');
+replace('\t\tconst cache = new Map<string, IModelCustomizeResult>();', '\n\t\t// fixture별 캐시와 조회 기록을 격리한다.\n\t\tconst cache = new Map<string, IModelCustomizeResult>();');
+replace('\t\t// sourceData는', '\n\t\t// sourceData는');
+replace('\t\tlet context: IExecutionContext;\n\t\tconst data = {', '\n\t\t// 조립은 실제 ProgramBuilder로 수행하고 허용한 설정만 공급한다.\n\t\tlet context: IExecutionContext;\n\t\tconst data = {');
+replace('\t\t\tget(request?:', '\n\t\t\tget(request?:');
+replace('\t\tconst definition = {', '\n\t\t// 실제 factory를 사용하고 정적 원본만 fixture 안에서 재사용한다.\n\t\tconst definition = {');
+replace('\t\tcontext = new Proxy(base, {', '\n\t\t// 실제 scope 조회와 메서드 bind를 유지하며 메뉴/설정/tenant 입력만 격리한다.\n\t\tcontext = new Proxy(base, {');
+replace('\t\tbody({', '\n\t\t// 테스트 실행 뒤 scope 정리는 using에 맡긴다.\n\t\tbody({');
+fs.writeFileSync(file, s);
