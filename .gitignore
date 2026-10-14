@@ -37,6 +37,7 @@ rag-batch/
 memory/
 
 # Internal evidence and work records
+/analysis/
 /reports/
 /investigations/
 /queue/
