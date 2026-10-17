@@ -12,6 +12,7 @@ import { timeLogDeliveryLabel, type TimeLogProfile } from "../erp/payload.ts";
 import type { TimeLogSessionCollection } from "../sessions/sessions.ts";
 import { formatTimeLogRemarks } from "./notes.ts";
 import type { Theme } from "@earendil-works/pi-coding-agent";
+import { stripVTControlCharacters } from "node:util";
 
 export const TIME_LOG_PREVIEW_COLUMNS = [
   "작업명",
@@ -25,8 +26,12 @@ export const TIME_LOG_PREVIEW_COLUMNS = [
   "비고",
 ] as const;
 
+function displayText(value: string): string {
+  return stripVTControlCharacters(value).replace(/[\x00-\x09\x0b-\x1f\x7f-\x9f]/g, " ");
+}
+
 function escapeMarkdown(value: string): string {
-  return value.replace(/[\\`*_{}\[\]()#+.!|><$~-]/g, "\\$&");
+  return displayText(value).replace(/[\\`*_{}\[\]()#+.!|><$~-]/g, "\\$&");
 }
 
 function cell(value: string): string {
@@ -170,6 +175,7 @@ function parsePreview(preview: string): ParsedPreview | null {
 
 /** Plain fallback confirmations contain the same fields and bullet lines, without HTML. */
 export function timeLogPreviewPlainText(preview: string): string {
+  preview = displayText(preview);
   const parsed = parsePreview(preview);
   if (!parsed) return unescapeMarkdown(preview);
   const lines = [unescapeMarkdown(parsed.before).trimEnd()];
@@ -268,6 +274,7 @@ export function createTimeLogPreviewComponent(
   preview: string,
   theme: MarkdownTheme | Theme,
 ): Component {
+  preview = displayText(preview);
   const parsed = parsePreview(preview);
   const resolvedTheme = markdownTheme(theme);
   const markdown = (text: string, width: number) =>

@@ -86,7 +86,6 @@ export interface CollectionOptions {
 export interface PostReader {
   readById(type: PostType, id: string): Promise<RawPost>;
   listRelatedPosts?(id: string): Promise<PostRef[]>;
-  listDevelopments?(id: string): Promise<PostRef[]>;
 }
 export class ContextError extends Error {
   code = "context_error";
@@ -450,8 +449,7 @@ export class GraphService {
           r = ref(k),
           rel = p.relations;
         if (r.type === "job") {
-          const listing =
-            this.reader.listRelatedPosts || this.reader.listDevelopments;
+          const listing = this.reader.listRelatedPosts;
           if (listing)
             rel.relatedPosts = refs([
               ...(rel.relatedPosts || []),

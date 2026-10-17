@@ -174,7 +174,7 @@ function redacted(text: string) {
       "$1<redacted>",
     )
     .replace(
-      /(["']?(?:authToken|access_token|refresh_token|api_key)["']?\s*[:=]\s*["']?)[^\s,"'}]+/gi,
+      /(["']?(?:authToken|access_token|refresh_token|api_key|api_?token)["']?\s*[:=]\s*["']?)[^\s,"'}]+/gi,
       "$1<redacted>",
     );
 }

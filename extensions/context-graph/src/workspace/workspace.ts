@@ -616,26 +616,7 @@ export class WorkspaceStore {
       .map(([source]) => source)
       .filter((path) => !writes.has(path));
     await this.transaction(writes, removals);
-    const directories = new Set<string>();
-    for (const path of removals) {
-      let cursor = dirname(path);
-      while (cursor !== this.directory) {
-        directories.add(cursor);
-        cursor = dirname(cursor);
-      }
-    }
-    for (const path of [...directories].sort((a, b) => b.length - a.length)) {
-      try {
-        await rmdir(path);
-      } catch (error) {
-        if (!(
-          error instanceof Error &&
-          "code" in error &&
-          ["ENOENT", "ENOTEMPTY", "EEXIST"].includes(String(error.code))
-        ))
-          throw error;
-      }
-    }
+    await this.removeEmptyDirectories(removals);
     return { changed: true, posts: nodes.size, moved: changed.length };
   }
   async commit(graph: Graph, downloader?: Downloader) {

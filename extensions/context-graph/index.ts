@@ -150,7 +150,6 @@ export default function contextGraph(
     testAccountUpdate?: TestAccountUpdate,
   ) =>
     services.runReader(store(ctx), args, connected, {
-      workspace: true,
       signal: operations.signal,
       testAccountUpdate,
     });

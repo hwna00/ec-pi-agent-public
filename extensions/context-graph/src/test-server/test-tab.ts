@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { BrowserRegistry } from "../browser/browser-registry.ts";
 import { leaseConnection } from "../browser/browser-session.ts";
 import { serverSpec } from "../browser/mcp.ts";
+import { MCPToolError } from "../browser/transport.ts";
 
 const stateDirectory = fileURLToPath(
   new URL("../../../../.local/test-server-tabs/", import.meta.url),
@@ -249,7 +250,8 @@ export class TestTab {
       }
     }
     const connection = capture.lease.connection;
-    const disconnected = async (): Promise<never> => {
+    const disconnected = async (error: unknown): Promise<never> => {
+      if (error instanceof MCPToolError) throw error;
       await this.release(sessionId).catch(() => {});
       throw new Error(
         "테스트 탭의 MCP 연결이 끊겼습니다. /test-tab을 다시 실행하여 같은 테스트 탭에 재연결하세요.",

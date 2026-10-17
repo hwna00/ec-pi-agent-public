@@ -275,7 +275,11 @@ export async function searchChunks(config: MongoConfig, query: string, vectors: 
     ]);
     const run = async (pipeline: Document[]): Promise<LexicalCandidate[]> => {
       const cursor = chunks.aggregate<LexicalCandidate>(pipeline, { signal });
-      try { return await cursor.toArray(); }
+      try {
+        const rows = await cursor.toArray();
+        if (rows.some(row => !validCandidate(row))) throw new DbError("MongoDB 검색 후보 형식이 올바르지 않습니다.");
+        return rows;
+      }
       finally { await cursor.close().catch(() => {}); }
     };
     let lexicalFragments = 1;
@@ -297,9 +301,6 @@ export async function searchChunks(config: MongoConfig, query: string, vectors: 
     const failed = searches.find(search => search.status === "rejected");
     if (failed?.status === "rejected") throw failed.reason;
     const branches = searches.map(search => (search as PromiseFulfilledResult<Document[]>).value);
-    if (branches.some(rows => rows.some(row => !validCandidate(row)))) {
-      throw new DbError("MongoDB 검색 후보 형식이 올바르지 않습니다.");
-    }
     options.onProgress?.("유사도·근거 검증");
     let rejected = 0;
     let belowThreshold = 0;
@@ -467,9 +468,8 @@ async function saveChunk(db: Db, collection: Collection<RagDocument>, expected: 
     // 전송 후 응답을 잃으면 저장 여부가 불명확하다. 참조될 수 있는 GridFS 파일은 지우지 않는다.
     inserted = await insertOnly(collection, candidate, signal);
     existing = await collection.findOne({ _id: expected._id }, { signal });
-    if (fileId && existing?.textFileId instanceof ObjectId && !fileId.equals(existing.textFileId)) {
-      await new GridFSBucket(db, { bucketName: "rag_chunk_text" }).delete(fileId);
-    } else if (fileId && existing?.textStorage === "inline") {
+    if (fileId && (existing?.textStorage === "inline"
+      || existing?.textFileId instanceof ObjectId && !fileId.equals(existing.textFileId))) {
       await new GridFSBucket(db, { bucketName: "rag_chunk_text" }).delete(fileId);
     }
   }
@@ -708,9 +708,6 @@ async function searchLexicalQuery(query: string, run: (fragment: string) => Prom
     }
     const unique = new Map<string, number>();
     for (const row of rows) {
-      if (!validCandidate(row)) {
-        throw new DbError("MongoDB 키워드 검색 후보 형식이 올바르지 않습니다.");
-      }
       unique.set(row._id, Math.max(unique.get(row._id) ?? 0, row.score));
     }
     for (const [id, score] of unique) {
@@ -746,9 +743,6 @@ function validCandidate(row: Document): boolean {
 function fuseRanks(branches: Document[][]): RankedCandidate[] {
   const byId = new Map<string, RankedCandidate>();
   for (const [branch, rows] of branches.entries()) {
-    if (rows.some(row => !validCandidate(row))) {
-      throw new DbError("MongoDB 검색 후보 형식이 올바르지 않습니다.");
-    }
     const sorted = [...rows].sort((a, b) => b.score - a.score || a._id.localeCompare(b._id));
     const seen = new Set<string>();
     let rank = 0;

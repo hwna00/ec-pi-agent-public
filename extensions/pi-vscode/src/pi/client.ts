@@ -1,10 +1,6 @@
 import { PROTOCOL_VERSION, type DebugConsolePage } from "../shared/types.ts";
 import type { DebugRequest, DebugControlResult } from "../shared/debug.ts";
-
-export interface Connection {
-  url: string;
-  token: string;
-}
+import { connectionUrl, type Connection } from "../shared/connection.ts";
 
 export interface ReadParams {
   limit?: number;
@@ -26,17 +22,7 @@ export async function controlDebug(connection: Connection, params: DebugRequest,
 
 async function requestBridge(connection: Connection, route: string, params: object, signal?: AbortSignal): Promise<DebugConsolePage | DebugControlResult> {
   // 이 컴퓨터의 VS Code에만 연결하고, 복사한 토큰으로 인증한다.
-  const url = new URL(connection.url);
-  if (
-    url.protocol !== "http:" || url.hostname !== "127.0.0.1" ||
-    url.username || url.password || url.pathname !== "/" || url.search || url.hash
-  ) {
-    throw new Error(".pi/.local/pi-vscode.json의 url은 http://127.0.0.1:<포트> 형식이어야 합니다.");
-  }
-
-  if (!connection.token) {
-    throw new Error("프로젝트의 .pi/.local/pi-vscode.json에 token을 설정하세요.");
-  }
+  const url = connectionUrl(connection);
 
   // 조회 조건을 보낸다. 기본값과 잘못된 조건의 검사는 서버에서 맡는다.
   url.pathname = route;

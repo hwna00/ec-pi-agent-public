@@ -114,8 +114,6 @@ export interface TimeLogTransportDependencies {
 export interface TimeLogSubmitRequest {
   sessionId: string;
   payload: unknown;
-  /** Retained for old callers; tab selection always follows ContextGraph. */
-  host?: string;
   assertCurrent?: () => void | Promise<void>;
   /** The server state and operation shown in the manual save confirmation. */
   plan?: TimeLogSavePlan;
@@ -715,6 +713,8 @@ export function parseTimeLogCreateResponse(
   const result = body?.Data?.slip_created_result?.boardXmaster?.data;
   if (
     body?.Status !== 200 ||
+    body?.Error ||
+    body?.Errors ||
     !emptyError ||
     typeof result?.data_sid !== "string" ||
     !result.data_sid ||

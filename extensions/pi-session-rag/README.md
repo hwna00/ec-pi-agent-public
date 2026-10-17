@@ -176,9 +176,9 @@ flowchart TD
 
 ### 순위 결합과 반환
 
-현재 DB의 청크 벡터와 질의 벡터로 **실제 코사인 유사도 ≥ 0.65**인 항목만 후보로 남긴 뒤, 각 목록의 순위를 RRF로 합칩니다. **0.65는 포함**하고 미만은 제외합니다. 키워드 목록도 동일한 기준을 적용합니다.
+현재 DB의 청크 벡터와 질의 벡터로 **실제 코사인 유사도 ≥ 0.59**인 항목만 후보로 남긴 뒤, 각 목록의 순위를 RRF로 합칩니다. **0.59는 포함**하고 미만은 제외합니다. 키워드 목록도 동일한 기준을 적용합니다.
 
-긴 질문은 어느 질의 청크와든 0.65 이상인 항목이 키워드 후보로 남으며, 벡터 목록은 해당 질의 청크와의 유사도가 0.65 이상이어야 순위 결합에 기여합니다. 반환하는 `similarity`는 질의 청크별 코사인 유사도의 최댓값이며, `minSimilarity`는 적용 기준 0.65입니다. MongoDB의 정규화된 `vectorSearchScore`나 RRF 점수에 0.65를 적용하지 않습니다. [MongoDB 코사인 유사도와 정규화 점수](https://www.mongodb.com/docs/manual/reference/operator/aggregation/similaritycosine/)도 참고하세요.
+긴 질문은 어느 질의 청크와든 0.59 이상인 항목이 키워드 후보로 남으며, 벡터 목록은 해당 질의 청크와의 유사도가 0.59 이상이어야 순위 결합에 기여합니다. 반환하는 `similarity`는 질의 청크별 코사인 유사도의 최댓값이며, `minSimilarity`는 적용 기준 0.59입니다. MongoDB의 정규화된 `vectorSearchScore`나 RRF 점수에 0.59를 적용하지 않습니다. [MongoDB 코사인 유사도와 정규화 점수](https://www.mongodb.com/docs/manual/reference/operator/aggregation/similaritycosine/)도 참고하세요.
 
 질의 벡터 수가 `m`일 때 다음 식을 사용합니다.
 
@@ -234,6 +234,6 @@ npm --prefix .\.pi\extensions\pi-session-rag test
 npm --prefix .\.pi\extensions\pi-session-rag run typecheck
 ```
 
-리팩토링 검증에서는 기존 265개 테스트와 최종 정리한 **78개 동작 테스트**, 타입 검사가 통과했습니다. Pi TUI와 실제 MongoDB 조회에서 확인한 범위는 `TEST-REPORT.md`에 구분해 기록되어 있습니다.
+2026-10-16 점검에서 **83개 동작 테스트**와 타입 검사가 통과했습니다. 이번 점검은 외부 모델·Cloudflare·MongoDB 호출 없이 실행했습니다. 이전 Pi TUI와 실제 MongoDB 조회의 검증 범위는 `TEST-REPORT.md`에 구분해 기록되어 있습니다.
 
 생성 요약과 검색 결과의 검증 상태는 **`unverified`**입니다. 출처·저장 상태의 검사는 사실 검증을 의미하지 않습니다. 원본 JSONL을 다시 읽는 사실 검증, 별도 사용자 ACL, 자동 답변 생성, 증분 요약, 독립 백그라운드 실행은 현재 포함하지 않습니다. GridFS 본문은 키워드 색인에 포함되지 않아 벡터 검색으로만 후보를 찾습니다. Windows 실행은 현재 검증 기록에서 확인하지 않았습니다.

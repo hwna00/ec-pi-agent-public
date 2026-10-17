@@ -7,25 +7,13 @@ import {
   chmodSync,
 } from "node:fs";
 import {
-  basename,
   dirname,
   isAbsolute,
-  join,
   relative,
   resolve,
   sep,
 } from "node:path";
 import { randomUUID } from "node:crypto";
-export function sessionDirectory(ctx) {
-  const file = ctx.sessionManager.getSessionFile();
-  if (!file) throw new Error("저장된 Pi 세션이 필요합니다.");
-  return join(
-    basename(file) === "session.jsonl"
-      ? dirname(file)
-      : join(dirname(file), basename(file, ".jsonl")),
-    "context-graph",
-  );
-}
 export function readJSON(path: string, fallback: any = null) {
   return existsSync(path) ? JSON.parse(readFileSync(path, "utf8")) : fallback;
 }
@@ -35,15 +23,6 @@ export function privateJSON(path, data) {
   writeFileSync(tmp, JSON.stringify(data, null, 2), { mode: 0o600 });
   renameSync(tmp, path);
   chmodSync(path, 0o600);
-}
-export function activeDirectory(root) {
-  const active = readJSON(join(root, "active.json"));
-  if (active) {
-    if (!/^[a-zA-Z0-9-]+$/.test(active.snapshot))
-      throw new Error("Invalid context snapshot");
-    return join(root, "snapshots", active.snapshot);
-  }
-  return root;
 }
 export function contextDirectory(ctx, config: { contextDir?: string } = {}) {
   return resolve(

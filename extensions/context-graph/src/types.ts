@@ -70,7 +70,6 @@ export interface Attachment {
   [key: string]: unknown;
 }
 export interface ReaderOptions {
-  workspace?: boolean;
   signal?: AbortSignal;
   timeout?: number;
   testAccountUpdate?: TestAccountUpdate;

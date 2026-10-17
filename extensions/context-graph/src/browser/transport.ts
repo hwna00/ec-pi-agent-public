@@ -12,6 +12,32 @@ const { StdioClientTransport } = await import(
   pathToFileURL(require.resolve("@modelcontextprotocol/sdk/client/stdio.js"))
     .href
 );
+export function resultText(result): string {
+  return (result.content || [])
+    .filter((c) => c.type === "text")
+    .map((c) => c.text)
+    .join("\n");
+}
+export function resultJSON(result) {
+  const text = resultText(result);
+  for (const source of [
+    text,
+    ...Array.from(
+      text.matchAll(/```(?:json)?\s*\n([\s\S]*?)\n```/g),
+      (m) => m[1],
+    ),
+    text.match(/### Result\s*\n([\s\S]*?)(?:\n### |$)/)?.[1],
+  ]) {
+    if (!source) continue;
+    try {
+      return JSON.parse(source);
+    } catch {}
+  }
+  throw new Error("MCP JSON 응답을 해석할 수 없습니다.");
+}
+export class MCPToolError extends Error {
+  detail?: string;
+}
 export class RawMCP {
   spec: ServerSpec;
   client: any;
@@ -48,17 +74,14 @@ export class RawMCP {
       { timeout: 90000 },
     );
     if (result.isError) {
-      const detail = (result.content || [])
-        .filter((c) => c.type === "text")
-        .map((c) => c.text)
-        .join("\n");
+      const detail = resultText(result);
       const reason = detail.match(
         /net::ERR_[A-Z_]+|Could not find DevToolsActivePort|Unsafe[^\n]*|not enabled[^\n]*/,
       )?.[0];
-      const error = new Error(
+      const error = new MCPToolError(
         `MCP ${this.spec.id}: ${name} 실패${reason ? " (" + reason + ")" : ""}`,
       );
-      (error as Error & { detail: string }).detail = detail;
+      error.detail = detail;
       throw error;
     }
     return result;

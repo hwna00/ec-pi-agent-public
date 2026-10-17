@@ -353,7 +353,7 @@ async function embedChunks(
     const chunk = pending[chunks.length];
     try {
       calls++;
-      const [vector] = await embedTexts(config, [chunk.text], signal, options.fetcher);
+      const vector = await embedText(config, chunk.text, signal, options.fetcher);
       signal.throwIfAborted();
       if (requireNonzero && !vector.some(value => value !== 0)) {
         throw new Error("검색 벡터가 모두 0입니다.");
@@ -515,20 +515,14 @@ function validatedConfig(
 }
 
 // 청크 원문을 그대로 보내고, HTTP 응답과 취소 상태를 먼저 확인한다.
-async function embedTexts(
+async function embedText(
   config: CloudflareConfig,
-  texts: readonly string[],
+  text: string,
   signal: AbortSignal,
   fetcher: typeof fetch = fetch,
-): Promise<number[][]> {
+): Promise<number[]> {
   ensureActive(signal);
   const credentials = validatedConfig(config.accountId, config.apiToken);
-
-  if (!texts.length) return [];
-
-  if (texts.some((text) => typeof text !== "string" || text.length === 0)) {
-    throw new Error("임베딩할 텍스트가 비어 있습니다.");
-  }
 
   let response: Response;
   try {
@@ -539,7 +533,7 @@ async function embedTexts(
           Authorization: `Bearer ${credentials.apiToken}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ text: texts, truncate_inputs: false }),
+        body: JSON.stringify({ text: [text], truncate_inputs: false }),
         redirect: "error",
         signal,
       });
@@ -550,6 +544,7 @@ async function embedTexts(
 
   ensureActive(signal);
   if (response.status === 413) throw new CloudflareInputTooLongError();
+  if ([401, 403, 429].includes(response.status)) throw httpError(response.status);
 
   let body: unknown;
   try {
@@ -564,7 +559,7 @@ async function embedTexts(
   if (inputTooLong(body)) throw new CloudflareInputTooLongError();
   if (!response.ok) throw httpError(response.status);
 
-  return validatedVectors(body, texts.length);
+  return validatedVector(body);
 }
 
 // HTTP 상태만 안내한다. 서버 본문은 입력이나 비밀 값을 포함할 수 있다.
@@ -594,7 +589,7 @@ function inputTooLong(body: unknown): boolean {
 }
 
 // 성공 응답만 받아들이고, 청크별로 유한한 1024차원 벡터가 하나씩 있는지 확인한다.
-function validatedVectors(body: unknown, count: number): number[][] {
+function validatedVector(body: unknown): number[] {
   const envelope = object(body);
   if (envelope?.success !== true || !Array.isArray(envelope.errors) || envelope.errors.length) {
     throw new Error("Cloudflare가 임베딩 요청을 성공적으로 처리하지 못했습니다.");
@@ -604,21 +599,18 @@ function validatedVectors(body: unknown, count: number): number[][] {
   const shape = result?.shape;
   const data = result?.data;
   if (shape !== undefined && (!Array.isArray(shape)
-    || shape.length !== 2 || shape[0] !== count || shape[1] !== EMBEDDING_DIMENSIONS)) {
+    || shape.length !== 2 || shape[0] !== 1 || shape[1] !== EMBEDDING_DIMENSIONS)) {
     throw new Error("Cloudflare 임베딩 응답의 벡터 크기가 올바르지 않습니다.");
   }
 
-  if (!Array.isArray(data) || data.length !== count) {
+  if (!Array.isArray(data) || data.length !== 1) {
     throw new Error("Cloudflare 임베딩 응답의 벡터 개수가 올바르지 않습니다.");
   }
 
-  for (const vector of data) {
-    if (!validVector(vector)) {
-      throw new Error("Cloudflare 임베딩 응답에 올바르지 않은 벡터가 있습니다.");
-    }
+  if (!validVector(data[0])) {
+    throw new Error("Cloudflare 임베딩 응답에 올바르지 않은 벡터가 있습니다.");
   }
-
-  return data as number[][];
+  return data[0];
 }
 
 function validVector(value: unknown): value is number[] {

@@ -40,7 +40,7 @@ try {
     await browser.connect(pages[0]);
   }
   process.stdout.write(
-    (await runReader(directory, args, browser, { workspace: true })) + "\n",
+    (await runReader(directory, args, browser)) + "\n",
   );
 } catch (e) {
   const known = e instanceof ContextError;

@@ -3,37 +3,16 @@ import type { ServerSpec } from "../types.ts";
 // Pi owns browser lifetime and persistent identities. Upstream is a plain MCP client.
 import { randomUUID } from "node:crypto";
 import { BrowserRegistry } from "./browser-registry.ts";
-import { RawMCP } from "./transport.ts";
+import { RawMCP, resultText, resultJSON } from "./transport.ts";
 
 const connections = new Map();
-export function text(result): string {
-  return (result.content || [])
-    .filter((item) => item.type === "text")
-    .map((item) => item.text)
-    .join("\n");
-}
-export function json(result) {
-  const value = text(result);
-  for (const candidate of [
-    value,
-    ...Array.from(
-      value.matchAll(/```(?:json)?\s*\n([\s\S]*?)\n```/g),
-      (match) => match[1],
-    ),
-  ]) {
-    try {
-      return JSON.parse(candidate);
-    } catch {}
-  }
-  throw new Error("Cannot read MCP JSON response");
-}
 export function pages(result) {
   return (
     result.structuredContent?.pages?.map((page) => ({
       pageId: page.id,
       selected: page.selected ?? page.isSelected,
     })) ||
-    text(result)
+    resultText(result)
       .split("\n")
       .flatMap((line) => {
         const match = /^(\d+):\s/.exec(line);
@@ -128,7 +107,7 @@ export class BrowserConnection {
       const result: { pageId: number; selected: boolean; targetId: string }[] =
         [];
       for (const page of listed) {
-        const targetId = json(
+        const targetId = resultJSON(
           await this.upstream!.call("evaluate_script", {
             pageId: page.pageId,
             function: `() => globalThis[${JSON.stringify(key)}] ?? null`,

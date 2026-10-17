@@ -1,6 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
 import {
-  existsSync,
   mkdirSync,
   readFileSync,
   unlinkSync,
@@ -172,10 +171,6 @@ export function claimDraft(
   mkdirSync(directory, { recursive: true, mode: 0o700 });
   const claimKey = scoped ? hashValue(operationKey) : draft.payloadHash;
   const claim = join(directory, claimKey + ".claim");
-  if (existsSync(claim))
-    throw new Error(
-      "같은 요청의 저장을 이미 시도했습니다. ERP에서 저장 여부를 확인하세요.",
-    );
   try {
     writeFileSync(
       claim,
@@ -188,7 +183,7 @@ export function claimDraft(
     );
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "EEXIST")
-      throw new Error("같은 요청의 저장이 이미 진행 중입니다.");
+      throw new Error("같은 요청의 저장을 이미 시도했습니다. ERP에서 저장 여부를 확인하세요.");
     throw error;
   }
   const previousClaimKey = draft.claimKey;
@@ -231,32 +226,26 @@ export function finishDraft(
   }
 }
 
-function activeClaimPath(root: string, draft: TimeLogDraft): string {
-  return draft.claimKey
+function ownedClaimPath(root: string, draft: TimeLogDraft): string {
+  const claim = draft.claimKey
     ? join(root, ".claims", safeId(draft.claimKey) + ".claim")
     : join(root, safeId(draft.sessionId), draft.payloadHash + ".claim");
-}
-
-function removeClaim(root: string, draft: TimeLogDraft): void {
-  const claim = activeClaimPath(root, draft);
   const owner = JSON.parse(readFileSync(claim, "utf8"));
   if (
     owner.draftId !== draft.id ||
     (draft.claimKey && owner.sessionId !== draft.sessionId)
   )
     throw new Error("다른 시간로그 초안의 전송 잠금입니다.");
-  unlinkSync(claim);
+  return claim;
+}
+
+function removeClaim(root: string, draft: TimeLogDraft): void {
+  unlinkSync(ownedClaimPath(root, draft));
 }
 
 /** Release only when the transport proves that no modifying request started. */
 export function releaseDraft(root: string, draft: TimeLogDraft): void {
-  const claim = activeClaimPath(root, draft);
-  const owner = JSON.parse(readFileSync(claim, "utf8"));
-  if (
-    owner.draftId !== draft.id ||
-    (draft.claimKey && owner.sessionId !== draft.sessionId)
-  )
-    throw new Error("다른 시간로그 초안의 전송 잠금입니다.");
+  const claim = ownedClaimPath(root, draft);
   draft.status = "draft";
   privateJSON(draftPath(root, draft.sessionId, draft.id), draft);
   unlinkSync(claim);

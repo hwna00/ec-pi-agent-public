@@ -9,7 +9,8 @@ import { createContextPathReader } from "../context-graph/src/session/footer.ts"
 import { stripVTControlCharacters } from "node:util";
 
 type KeybindingsManager = ConstructorParameters<typeof CustomEditor>[2];
-export type SessionCategory = "tp" | "dev" | "hub" | "dp" | "job" | "plan" | "decision" | "meeting" | "default";
+export const SESSION_CATEGORIES = ["tp", "dev", "hub", "dp", "job", "plan", "decision", "meeting", "default"] as const;
+export type SessionCategory = typeof SESSION_CATEGORIES[number];
 export type SessionLabel = {
 	category: SessionCategory;
 	title: string;
@@ -19,8 +20,8 @@ export type SessionLabel = {
 	projectTitle?: string | null;
 };
 
-export const SESSION_CATEGORIES: SessionCategory[] = ["tp", "dev", "hub", "dp", "job", "plan", "decision", "meeting", "default"];
 export const SESSION_LABEL_ENTRY_TYPE = "session-label";
+const SESSION_NAME_PATTERN = new RegExp(`^\\[(${SESSION_CATEGORIES.join("|")})\\]\\s+(.+)$`, "i");
 
 function straightBorder(width: number): string {
 	return "─".repeat(Math.max(0, width));
@@ -34,12 +35,8 @@ function topBorderWithLabel(width: number, sessionName: string): string {
 	return label + "─".repeat(width - visibleWidth(label));
 }
 
-function stripAnsi(value: string): string {
-	return value.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "");
-}
-
 function displayText(value: string): string {
-	return stripAnsi(value).replace(/[\x00-\x1f\x7f]/g, " ").trim();
+	return stripVTControlCharacters(value).replace(/[\x00-\x1f\x7f-\x9f]/g, " ").trim();
 }
 
 // Read the mounted component tree before setFooter replaces the default footer.
@@ -69,7 +66,7 @@ function footerCwd(cwd: string): string {
 }
 
 function isHorizontalBorder(value: string): boolean {
-	const stripped = stripAnsi(value);
+	const stripped = stripVTControlCharacters(value);
 	return stripped.includes("─") && stripped.replace(/[↑↓0-9 more]/g, "").split("").every((char) => char === "─");
 }
 
@@ -79,14 +76,15 @@ function isSessionCategory(value: string): value is SessionCategory {
 
 export function parseSessionName(sessionName: string): { category?: Exclude<SessionCategory, "default">; title: string } {
 	const trimmed = sessionName.trim();
-	const bracketMatch = /^\[(tp|dev|hub|dp|job|plan|decision|meeting)\]\s+(.+)$/i.exec(trimmed);
-	if (!bracketMatch) {
+	const bracketMatch = SESSION_NAME_PATTERN.exec(trimmed);
+	const category = bracketMatch?.[1].toLowerCase() as SessionCategory | undefined;
+	if (!bracketMatch || category === "default") {
 		return { title: trimmed };
 	}
 
 	return {
-		category: bracketMatch[1]?.toLowerCase() as Exclude<SessionCategory, "default">,
-		title: bracketMatch[2]?.trim() ?? "",
+		category,
+		title: bracketMatch[2].trim(),
 	};
 }
 
@@ -168,17 +166,11 @@ function parseRenameArgs(args: string): { category: SessionCategory; title: stri
 		return undefined;
 	}
 
-	const bracketMatch = /^\[(tp|dev|hub|dp|job|plan|decision|meeting|default)\]\s+(.+)$/i.exec(trimmed);
+	const bracketMatch = SESSION_NAME_PATTERN.exec(trimmed);
 	if (bracketMatch) {
-		const category = bracketMatch[1];
-		const title = bracketMatch[2];
-		if (!category || !title) {
-			return undefined;
-		}
-
 		return {
-			category: category.toLowerCase() as SessionCategory,
-			title: title.trim(),
+			category: bracketMatch[1].toLowerCase() as SessionCategory,
+			title: bracketMatch[2].trim(),
 		};
 	}
 
@@ -272,7 +264,7 @@ export default function sessionLabelEditorExtension(
 			}
 
 			if (!parsed.title) {
-				ctx.ui.notify("Usage: /rename [tp|dev|hub|dp|job|plan|decision|meeting|default] <session title>", "warning");
+				ctx.ui.notify(`Usage: /rename [${SESSION_CATEGORIES.join("|")}] <session title>`, "warning");
 				return;
 			}
 
@@ -306,7 +298,7 @@ export default function sessionLabelEditorExtension(
 					lines[0] = truncateToWidth(theme.fg("dim", line), width, theme.fg("dim", "..."));
 					const path = contextPath();
 					if (path) {
-						const contextLine = `Context: ${stripVTControlCharacters(path).replace(/[\x00-\x1f\x7f-\x9f]/g, " ")}`;
+						const contextLine = `Context: ${displayText(path)}`;
 						lines.splice(1, 0, truncateToWidth(theme.fg("dim", contextLine), width, theme.fg("dim", "...")));
 					}
 					return lines;

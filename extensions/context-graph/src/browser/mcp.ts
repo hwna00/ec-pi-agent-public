@@ -4,6 +4,7 @@ import { resolve, dirname, isAbsolute } from "node:path";
 import { RawMCP, piRoot } from "./transport.ts";
 import { leaseConnection } from "./browser-session.ts";
 export { piRoot };
+export { resultText, resultJSON } from "./transport.ts";
 const require = createRequire(import.meta.url);
 
 export class MCP {
@@ -35,13 +36,11 @@ export class MCP {
   }
   async call(name: string, args: Record<string, any> = {}) {
     if (!this.connection) return this.raw!.call(name, args);
-    if (name === "select_page") {
-      this.selectedPageId = args.pageId;
-      return this.connection!.call(name, args);
-    }
-    const result = await this.connection!.call(name, args, this.selectedPageId);
-    if (name === "new_page")
-      this.selectedPageId = this.connection!.selectedPageId;
+    const result = await this.connection.call(
+      name, args, name === "select_page" ? undefined : this.selectedPageId,
+    );
+    if (name === "select_page") this.selectedPageId = args.pageId;
+    if (name === "new_page") this.selectedPageId = this.connection.selectedPageId;
     return result;
   }
   async close() {
@@ -106,27 +105,4 @@ export function serverSpec(
       resolve(piRoot, ".local/ec-context/mcp-output"),
     ],
   };
-}
-export function resultText(result): string {
-  return (result.content || [])
-    .filter((c) => c.type === "text")
-    .map((c) => c.text)
-    .join("\n");
-}
-export function resultJSON(result) {
-  const text = resultText(result);
-  for (const source of [
-    text,
-    ...Array.from(
-      text.matchAll(/```(?:json)?\s*\n([\s\S]*?)\n```/g),
-      (m) => m[1],
-    ),
-    text.match(/### Result\s*\n([\s\S]*?)(?:\n### |$)/)?.[1],
-  ]) {
-    if (!source) continue;
-    try {
-      return JSON.parse(source.trim());
-    } catch {}
-  }
-  throw new Error("MCP JSON 응답을 해석할 수 없습니다.");
 }

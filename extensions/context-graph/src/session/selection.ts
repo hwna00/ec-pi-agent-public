@@ -38,9 +38,7 @@ export function readLocalContext(ctx, args: string[]): Promise<string> {
     process.env.ECOUNT_CONTEXT_CONFIG || join(piRoot, "ec-context.json"),
     {},
   );
-  return runReader(contextDirectory(ctx, config), args, undefined, {
-    workspace: true,
-  });
+  return runReader(contextDirectory(ctx, config), args);
 }
 
 export async function chooseContextTarget(
