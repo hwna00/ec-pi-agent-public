@@ -1,10 +1,10 @@
 import { join } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "@earendil-works/pi-ai";
-import { BrowserPool } from "./browser.ts";
-import { piRoot, serverSpec } from "./mcp.ts";
-import { runReader } from "./reader.ts";
-import { ContextError } from "./graph.ts";
+import { BrowserPool } from "./src/browser/browser.ts";
+import { piRoot, serverSpec } from "./src/browser/mcp.ts";
+import { runReader } from "./src/collect/reader.ts";
+import { ContextError } from "./src/collect/graph.ts";
 import {
   contextDirectory,
   contextSelection,
@@ -14,27 +14,27 @@ import {
   parseReference,
   completeTarget,
   askSecret,
-} from "./session.ts";
-import { loginAccount, loginERP } from "./login.ts";
-import { openTestServer } from "./test-server.ts";
+} from "./src/session/session.ts";
+import { loginAccount, loginERP } from "./src/test-server/login.ts";
+import { openTestServer } from "./src/test-server/test-server.ts";
 import {
   TestServerNetwork,
   redactNetworkText,
-} from "./test-server-network.ts";
+} from "./src/test-server/test-server-network.ts";
 import {
   parseTestTabCommand,
   type TestTabRequest,
-} from "./test-tab-tools.ts";
-import type { TestAccountUpdate } from "./types.ts";
+} from "./src/test-server/test-tab-tools.ts";
+import type { TestAccountUpdate } from "./src/types.ts";
 import {
   beginContextGraphConnection,
   markContextGraphConnection,
-} from "./context-connection.ts";
+} from "./src/browser/context-connection.ts";
 import {
   chooseContext,
   applyContext,
   clearContext,
-} from "./selection.ts";
+} from "./src/session/selection.ts";
 
 export default function contextGraph(
   pi: ExtensionAPI,

@@ -2,7 +2,7 @@
 
 현재 Pi 대화 분기를 Q&A Markdown으로 요약하고, Cloudflare BGE-M3로 임베딩한 뒤 MongoDB에 저장하는 확장입니다. 저장한 요약은 벡터 검색과 BM25 키워드 검색을 함께 사용해 찾습니다.
 
-여러 세션을 선택해 처리하려면 [일괄 적재 도구](batch/session-rag-batch.README.md)를 사용합니다. 별도 확장 등록은 필요하지 않습니다.
+여러 세션을 선택해 처리하려면 [일괄 적재 도구](src/batch/session-rag-batch.README.md)를 사용합니다. 별도 확장 등록은 필요하지 않습니다.
 
 ## 빠른 시작
 
@@ -10,11 +10,11 @@ Node.js **22.19 이상**, Pi **1.0의 `modelRegistry.complete` API**, Pi에서 �
 
 이 프로젝트에는 `.pi/settings.json`의 `+extensions/pi-session-rag/index.ts`로 이미 등록되어 있습니다. 기존 등록을 사용하고, 확장을 수정한 뒤 Pi에서 `/reload`를 실행합니다.
 
-의존성을 처음 준비할 때는 프로젝트 루트에서 실행합니다.
+Pi SDK·TypeScript·Node.js 타입은 `.pi`에서 공통으로 관리하고, 이 확장은 토크나이저·MongoDB 의존성만 별도로 관리합니다. 처음 준비할 때는 프로젝트 루트에서 순서대로 실행합니다.
 
-```sh
-cd .pi/extensions/pi-session-rag
-npm ci
+```powershell
+npm --prefix .\.pi ci
+npm --prefix .\.pi\extensions\pi-session-rag ci
 ```
 
 프로젝트 루트의 `.env` 또는 `.pi/.env`에 설정을 넣습니다. 항목 예시는 `.env.example`에도 있습니다.
@@ -105,7 +105,7 @@ TUI는 `턴 N / 총 M — Q&A 요약 중`과 `턴 M / 총 M 완료 — 세션 �
 
 ### 임베딩
 
-저장된 Markdown 전체를 **`@cf/baai/bge-m3`**로 임베딩합니다. 벡터는 **1,024차원**입니다. `tokenizer/`의 고정 자산으로 특수 토큰을 포함한 입력 토큰 수를 세고, 청크마다 **8,192토큰** 이내로 무손실 분할합니다. 이 자산에는 모델 가중치가 없습니다.
+저장된 Markdown 전체를 **`@cf/baai/bge-m3`**로 임베딩합니다. 벡터는 **1,024차원**입니다. `assets/tokenizer/`의 고정 자산으로 특수 토큰을 포함한 입력 토큰 수를 세고, 청크마다 **8,192토큰** 이내로 무손실 분할합니다. 이 자산에는 모델 가중치가 없습니다.
 
 요청은 `truncate_inputs: false`를 지정하며, 청크 텍스트를 이어 붙이면 저장된 Markdown과 같습니다. HTTP 413 또는 명확한 입력 길이 오류가 나면 실패한 청크만 더 나누어 재시도합니다. 인증·할당량·일반 오류에서는 분할 재시도를 하지 않습니다.
 
@@ -219,19 +219,19 @@ TUI에서 **Esc**로 취소합니다. 독립 백그라운드 작업이 아니며
 | 파일 | 먼저 볼 함수와 역할 |
 |---|---|
 | `index.ts` | 명령 등록 → `summarizeSession` → `uploadSummary`; `runSearch`와 진행·취소 관리 |
-| `summary.ts` | `snapshot` → `summarize` → `renderMarkdown`; `RunMetrics`와 파일 게시 |
-| `embedding.ts` | `prepareEmbedding` → `generateEmbedding`; `embedQuery`, 설정·청킹·캐시 |
-| `db.ts` | `uploadEmbedding`, `ensureSearchIndexes`, `searchChunks`; DB 저장·검색·출처 검사 |
+| `src/summary.ts` | `snapshot` → `summarize` → `renderMarkdown`; `RunMetrics`와 파일 게시 |
+| `src/embedding.ts` | `prepareEmbedding` → `generateEmbedding`; `embedQuery`, 설정·청킹·캐시 |
+| `src/db.ts` | `uploadEmbedding`, `ensureSearchIndexes`, `searchChunks`; DB 저장·검색·출처 검사 |
 
 테스트는 `tests/summary.test.ts`, `tests/embedding.test.ts`, `tests/db.test.ts`, `tests/extension.test.ts`로 같은 네 영역을 검증합니다.
 
 ## 검증과 현재 범위
 
-확장 디렉터리에서 실행합니다.
+위 설치를 마친 뒤 프로젝트 루트에서 실행합니다.
 
-```sh
-npm test
-npm run typecheck
+```powershell
+npm --prefix .\.pi\extensions\pi-session-rag test
+npm --prefix .\.pi\extensions\pi-session-rag run typecheck
 ```
 
 리팩토링 검증에서는 기존 265개 테스트와 최종 정리한 **78개 동작 테스트**, 타입 검사가 통과했습니다. Pi TUI와 실제 MongoDB 조회에서 확인한 범위는 `TEST-REPORT.md`에 구분해 기록되어 있습니다.

@@ -1,10 +1,10 @@
 import { Type } from "@earendil-works/pi-ai";
 import { defineTool, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { DEFAULT_LIMIT, MAX_LIMIT } from "./shared/limits.ts";
-import { readDebugConsole, controlDebug } from "./pi/client.ts";
-import { formatDebugConsole } from "./pi/format.ts";
-import { registerDebugCommands } from "./pi/commands.ts";
-import { readConnection } from "./shared/connection.ts";
+import { DEFAULT_LIMIT, MAX_LIMIT } from "./src/shared/limits.ts";
+import { readDebugConsole, controlDebug } from "./src/pi/client.ts";
+import { formatDebugConsole } from "./src/pi/format.ts";
+import { registerDebugCommands } from "./src/pi/commands.ts";
+import { readConnection } from "./src/shared/connection.ts";
 
 export default function piVscode(pi: ExtensionAPI) {
   registerDebugCommands(pi);

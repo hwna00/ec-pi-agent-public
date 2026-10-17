@@ -9,29 +9,18 @@
     ]
   },
   "files": [
-    "*.ts",
+    "index.ts",
+    "src",
     "README.md",
     "tsconfig.json",
     "tests"
   ],
   "scripts": {
-    "test": "node --import ./tests/no-network.ts --test tests/*.test.ts",
+    "test": "node --import ./tests/no-network.ts --test tests/*.test.ts tests/*/*.test.ts",
     "check": "tsc -p tsconfig.json"
   },
   "dependencies": {
     "puppeteer-core": "25.11.0"
-  },
-  "peerDependencies": {
-    "@earendil-works/pi-ai": "^0.87.1",
-    "@earendil-works/pi-coding-agent": "^0.87.1",
-    "@earendil-works/pi-tui": "^0.87.1"
-  },
-  "devDependencies": {
-    "@earendil-works/pi-ai": "0.87.1",
-    "@earendil-works/pi-coding-agent": "0.87.1",
-    "@earendil-works/pi-tui": "0.87.1",
-    "@types/node": "22.19.19",
-    "typescript": "5.9.3"
   },
   "engines": {
     "node": ">=22.19.0"

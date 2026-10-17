@@ -12,5 +12,5 @@
     "skipLibCheck": true,
     "types": ["node", "vscode"]
   },
-  "include": ["index.ts", "pi/**/*.ts", "shared/**/*.ts", "vscode/src/**/*.ts", "vscode/test/**/*.ts", "tests/**/*.ts"]
+  "include": ["index.ts", "src/**/*.ts", "tests/**/*.ts"]
 }

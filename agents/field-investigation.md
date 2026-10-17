@@ -5,7 +5,7 @@ description: 현장 조사반 — 화면·사용 흐름·외부 시스템·브�
 tools: read, grep, find, ls, mcp:DebugMCP
 extensions:
 subagentOnlyExtensions:
-  - D:/ecxsolution/ecount.nextv56/ecount.solution/.pi/extensions/browser-tools.ts
+  - D:/ecxsolution/ecount.nextv56/ecount.solution/.pi/extensions/browser-tools/index.ts
 systemPromptMode: replace
 inheritProjectContext: true
 inheritSkills: false

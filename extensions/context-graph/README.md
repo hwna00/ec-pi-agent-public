@@ -8,13 +8,16 @@
 
 Node 22.19 이상, Pi 0.87.1 이상과 Chrome이 필요하다. 수집·HTML 파싱·그래프·저장·다운로드는 모두 TypeScript로 실행한다. Chrome 경로는 `executablePath`로 지정할 수 있다. `localMcpPath`를 생략하면 설치된 `chrome-devtools-mcp`를 사용한다.
 
-```sh
-npm ci --prefix .pi/extensions/context-graph
+공통 Pi SDK·TypeScript·Node 타입은 `.pi/package.json`에서 관리한다. 프로젝트 폴더의 PowerShell에서 공통 패키지를 먼저 설치한 뒤, 이 확장의 브라우저·수집 의존성을 설치한다.
+
+```powershell
+npm ci --prefix .\.pi
+npm ci --prefix .\.pi\extensions\context-graph
 ```
 
 Pi에서 `/reload` 후 `/load-context`로 수집하거나 `/apply-context`로 저장한 문서를 선택한다. 선택한 게시글은 바로 적용되며 다음 모델 요청부터 게시글 정보, 작업 디렉터리 기준 상대 경로, 선택한 작업의 폴더 구조, Markdown 스키마 설명을 자동 주입한다. `Default (라벨 없음)`을 고르면 맥락 안내를 주입하지 않는다.
 
-선택 사항인 `session-label-editor.ts`를 함께 설치하면 새 세션에서도 작업 → 유형 → 게시글을 선택한다. 작업은 `[프로젝트 코드] JOB 번호 | 작업 제목`으로 표시하며 선택한 게시글을 바로 적용한다.
+선택 사항인 `session-label-editor/index.ts`를 함께 설치하면 새 세션에서도 작업 → 유형 → 게시글을 선택한다. 작업은 `[프로젝트 코드] JOB 번호 | 작업 제목`으로 표시하며 선택한 게시글을 바로 적용한다.
 
 새 자료를 수집하거나 현재 세션의 선택을 바꿀 때는 다음 명령을 사용한다.
 
@@ -42,7 +45,7 @@ Pi에서 `/reload` 후 `/load-context`로 수집하거나 `/apply-context`로 �
 - ECDrive 연결도 파일로 수집한다. 파일 객체 번호(`oid`)와 버전으로 중복을 구분하며, 일반 첨부와 다른 저장 경로를 사용한다. 다운로드는 원본 게시글의 파일 보안 확인, ECDrive 다운로드 토큰 발급, 파일 URL 조회, 바이트 저장 순서로 진행한다. 관련 게시글 팝업을 열 필요가 없으며 토큰과 다운로드 URL은 브라우저 안에서만 사용한다. 권한 확인이나 파일 전송이 실패하면 해당 파일을 `download_failed`로 남기고 본문·답글 저장을 계속한다. `--no-downloads` 또는 `downloadAttachments: false`일 때는 ECDrive 파일 정보만 저장한다.
 - `/apply-context [type:number]`: 이미 저장한 게시글을 현재 세션에 적용한다. 인자를 생략하면 작업 → 유형 → 게시글 순서로 선택한다. 재수집·브라우저 연결 없이 로컬 파일과 무결성을 확인하며, 이전에 저장한 범위에 다른 작업 소속 글이 섞여 있어도 선택한 시작 글의 작업 범위만 적용한다. `/apply-context default` 또는 선택 화면의 기본값은 적용을 해제하고 라벨 없는 세션으로 바꾼다. 취소하거나 저장 자료 확인에 실패하면 기존 선택을 유지한다. 적용 후 첫 모델 요청부터 게시글 정보, 상대 경로, 선택한 작업의 폴더 구조, Markdown 스키마 설명을 자동 주입한다.
 - 작업을 조회하면 작업 화면의 기획·방향결정 목록도 함께 조회하고, 연결된 게시글의 본문·답글·첨부를 수집한다. 기획은 `기획/plan_<번호>.md`, 방향결정은 `방향결정/decision_<번호>.md`로 저장하며 작업의 `index.md`에서 연결한다. 빈 목록은 추가 게시글 없이 완료하고 조회 실패는 누락으로 표시한다.
-- `tp` 테스트오류수정, `hub` 개발본부 Hub, `dev` 개발, `dp` 테스트/배포, `job` 작업, `plan` 기획, `decision` 방향결정, `meeting` 회의를 인식한다. `기획:번호` 또는 `plan:번호`로 직접 조회·적용할 수도 있다. 게시판별 ID와 상세 메뉴 매핑은 `site-api.ts`의 `siteTypes`에 있다.
+- `tp` 테스트오류수정, `hub` 개발본부 Hub, `dev` 개발, `dp` 테스트/배포, `job` 작업, `plan` 기획, `decision` 방향결정, `meeting` 회의를 인식한다. `기획:번호` 또는 `plan:번호`로 직접 조회·적용할 수도 있다. 게시판별 ID와 상세 메뉴 매핑은 `src/collect/site-api.ts`의 `siteTypes`에 있다.
 - 저장한 자료를 갱신하려면 같은 `/load-context type:number`를 다시 실행한다. 제한된 범위를 유지하려면 `/load-context --only type:number`를 사용한다.
 - `/test-server [test|zeus|stage] [--edit]`: 현재 세션에서 선택한 게시글 Markdown의 frontmatter `test_accounts`를 읽는다. TP뿐 아니라 모든 지원 게시글 유형에 사용할 수 있다. 계정이 완비되어 있으면 문서를 다시 쓰지 않고 서버를 연다. 후보가 여러 개면 선택하고, 계정이 없거나 일부 값이 비어 있으면 빠진 서버·회사코드·ID·비밀번호만 질문한다. 비밀번호 입력은 마스킹한다. 입력을 완료하면 같은 문서의 frontmatter에 계정을 등록·보완하고, 문서 해시와 내부 자료를 함께 저장한 후 서버를 연다. 기존 본문과 다른 frontmatter 값은 보존한다. `--edit`는 선택한 계정의 값을 다시 입력받아 교체한다. 입력 취소, 저장 실패, 입력 중 세션·분기·선택 문서 변경 시 서버를 열지 않는다. 기존 `.context/test-accounts/*.json`은 읽거나 갱신하지 않는다.
 - 수동 등록·수정한 계정은 내부 게시글 자료에 별도로 구분해 재수집이나 다른 게시글 저장 후에도 유지한다. 같은 서버·회사코드·ID의 원본 후보는 수동 값으로 대체하며, 수정 전 후보의 식별값도 함께 기억한다. 수정하지 않은 원본 후보는 재수집한 최신 값을 사용한다. `server: "zeus08lxba2"`이면 `https://zeus08lxba2.ecount.com/` 로그인 페이지를 새 탭에 연다. 상세 서버명을 `zeus` 같은 환경 접두사로 줄이지 않는다. 로그인 성공 후 ERP URL에는 `__disableMin=Y`를 적용한다. 로그인 화면에 서버 선택란이 있으면 함께 입력하고, 없으면 상세 호스트 주소로 서버를 결정한다. 환경은 상세 서버명의 접두사로 결정한다. 명령에 환경 인수를 주면 상세 서버명의 접두사와 일치해야 하며, 불일치하면 `--edit`로 서버명을 수정하도록 안내한다. 새 탭을 조작 대상으로 선택하되 수집에 사용하는 기존 ERP 탭의 고정 정보는 유지한다. 로그인 성공을 확인하지 못하면 오류를 표시하되 저장한 계정은 유지한다.
@@ -54,7 +57,7 @@ Pi에서 `/reload` 후 `/load-context`로 수집하거나 `/apply-context`로 �
 
 ### 테스트 탭의 공통 MCP 호출
 
-Pi `/reload` 후 `/test-server`로 테스트 탭을 열면 에이전트 도구 `test_tab`, 범용 명령어 `/test-tab`, 단축 명령어 `/list-network`가 같은 연결·검증 계층을 사용한다. 현재 지원 도구는 `list_network_requests`, `get_network_request`, `emulate` 세 가지다. MCP 서버는 수정하지 않으며, 실제 연결의 도구 목록과 JSON Schema를 읽는다. `test-tab.ts`는 탭 식별·복원·MCP 수명만 담당하고 `test-tab-tools.ts`가 지원 도구, 인수 검증, 네트워크 요청 ID와 결과 표시를 담당한다.
+Pi `/reload` 후 `/test-server`로 테스트 탭을 열면 에이전트 도구 `test_tab`, 범용 명령어 `/test-tab`, 단축 명령어 `/list-network`가 같은 연결·검증 계층을 사용한다. 현재 지원 도구는 `list_network_requests`, `get_network_request`, `emulate` 세 가지다. MCP 서버는 수정하지 않으며, 실제 연결의 도구 목록과 JSON Schema를 읽는다. `src/test-server/test-tab.ts`는 탭 식별·복원·MCP 수명만 담당하고 `src/test-server/test-tab-tools.ts`가 지원 도구, 인수 검증, 네트워크 요청 ID와 결과 표시를 담당한다.
 
 직접 실행:
 
@@ -105,13 +108,13 @@ Pi `/reload` 후 `/test-server`로 테스트 탭을 열면 에이전트 도구 `
 수집 없이 로컬 경로만 변환하려면 `.pi/extensions/context-graph/`에서 다음을 실행한다. 브라우저 연결은 필요 없다.
 
 ```sh
-node context-cli.ts --store-dir ../../context migrate-paths
+node src/cli/context-cli.ts --store-dir ../../context migrate-paths
 ```
 
 기존 수집에서 작업 정보가 누락되어 독립 폴더로 저장된 글은 아래 명령으로 복구한다. 저장된 원본 캡처의 정확한 연결 작업 번호를 사용하며, 브라우저를 조회하지 않는다. 게시글·첨부·색인의 해시를 확인하고 경로와 링크를 함께 갱신한다. 사용자 파일은 유지한다.
 
 ```sh
-node context-cli.ts --store-dir ../../context repair-grouping
+node src/cli/context-cli.ts --store-dir ../../context repair-grouping
 ```
 
 게시글 파일의 공통 프론트매터는 자신의 `type`, 문자열 `number`, `title`이다. `project_code`는 `job` 작업 파일에만 추가한다. `test_accounts`는 후보별 `server`, `company_code`, `account_id`, `password`를 담고 실제 비밀번호를 보존한다. TP 파일은 수집 계정이 없어도 `test_accounts: []`를 만들고, 다른 유형도 계정이 있으면 같은 목록을 저장한다. 목록이 없거나 `null`이면 계정 없음으로 처리하며, 누락한 항목은 `null`로 읽고 실행 시 질문한다. 일반 YAML 및 LF/CRLF 줄바꿈을 지원한다. 계정 값은 문자열 또는 `null`이며, 앞자리 0이 있는 회사코드는 반드시 문자열로 쓴다. 연결 작업 번호와 제목은 별도 프론트매터 키로 중복 저장하지 않는다. `index.md`는 `type: index`, `number: null`, 목록의 `title`로 구분한다.
@@ -124,7 +127,7 @@ node context-cli.ts --store-dir ../../context repair-grouping
 
 `ec-context-session` Pi custom entry에는 `version: 4`, 게시글 `entryKey`, 연결 작업 `jobKey`를 기록한다. 적용 해제는 두 키를 `null`로 저장한다. 작업 키는 적용 당시의 관계를 보존한다. 현재 세션의 분기에서 마지막 선택을 복원한다. 공용 활성 포인터는 없다. 수집은 어느 세션에서도 선택·라벨·이름을 변경하지 않는다. 적용 중 세션이 바뀌면 전환한 세션에 적용하지 않는다. Pi 종료 시 수집을 취소하고 MCP 연결을 닫는다. Pi 종료 후에도 계속 실행하는 별도 수집 데몬은 없다. 저장된 자료 조회는 브라우저와 Pi 세션 파일 없이 가능하다.
 
-`session-label-editor.ts`의 새 세션 선택도 같은 로컬 목록을 사용한다. 작업 → 유형(개발, 오류 수정 등) → 게시글 순서로 고르며 기본값을 고르면 라벨 없는 세션을 만든다. 같은 프로젝트 코드에 여러 작업이 있어도 JOB 번호와 작업 제목으로 구분한다. 코드 없는 작업도 번호와 제목으로 표시한다. 연결 작업 없는 글은 별도 선택 항목으로 표시하며 저장 폴더를 새로 만들지 않는다. 입력창 위 테두리에는 선택한 게시글의 유형·번호·제목을 한 줄로 표시한다.
+`session-label-editor/index.ts`의 새 세션 선택도 같은 로컬 목록을 사용한다. 작업 → 유형(개발, 오류 수정 등) → 게시글 순서로 고르며 기본값을 고르면 라벨 없는 세션을 만든다. 같은 프로젝트 코드에 여러 작업이 있어도 JOB 번호와 작업 제목으로 구분한다. 코드 없는 작업도 번호와 제목으로 표시한다. 연결 작업 없는 글은 별도 선택 항목으로 표시하며 저장 폴더를 새로 만들지 않는다. 입력창 위 테두리에는 선택한 게시글의 유형·번호·제목을 한 줄로 표시한다.
 
 선택을 마치거나 `/load-context` 수집을 완료하면 세션의 현재 분기에 적용 정보를 기록한다. `before_agent_start`가 첫 모델 요청부터 해당 글의 유형·번호·제목, 상대 경로, 작업의 폴더 구조와 위 프론트매터 스키마를 안내한다. 현재 게시글과 `index.md`를 읽고 관련 게시글·첨부 파일을 확인하도록 설명한다. 본문과 계정 값은 자동으로 복사하지 않는다. Default 세션에는 이 안내가 없으며 `/load-context`를 완료하면 수집한 시작 문서의 안내를 주입한다.
 
@@ -185,23 +188,23 @@ A25_09780/
 
 Chrome channel은 `stable`, `beta`, `dev`, `canary`를 선택할 수 있다. 등록한 브라우저만 검색하며 임의의 OS 프로필에서 쿠키를 복사하지 않는다. Playwright에 endpoint를 생략하면 `.pi/.local/ec-context/ec-browser`의 별도 관리 프로필을 사용한다. MCP 출력은 `.pi/.local/ec-context/mcp-output`에 저장한다.
 
-MCP 서버는 익스텐션 코드가 직접 실행하고 SDK로 호출한다. `reader.ts`가 브라우저 API를 직접 호출하고 TS 모듈로 파싱·수집·저장을 처리한다. Python 프로세스나 stdio 중계는 사용하지 않는다. 프롬프트 생성은 로컬 저장 자료에서 게시글 정보·상대 경로·작업의 폴더 구조를 읽고 파일명 규칙과 Markdown 스키마를 설명한다. 서버 조회·다운로드·본문 주입은 하지 않는다. 필요한 본문은 에이전트가 파일 도구로 읽는다.
+MCP 서버는 익스텐션 코드가 직접 실행하고 SDK로 호출한다. `src/collect/reader.ts`가 브라우저 API를 직접 호출하고 TS 모듈로 파싱·수집·저장을 처리한다. Python 프로세스나 stdio 중계는 사용하지 않는다. 프롬프트 생성은 로컬 저장 자료에서 게시글 정보·상대 경로·작업의 폴더 구조를 읽고 파일명 규칙과 Markdown 스키마를 설명한다. 서버 조회·다운로드·본문 주입은 하지 않는다. 필요한 본문은 에이전트가 파일 도구로 읽는다.
 
 ## 검증
 
 프로젝트 폴더의 PowerShell에서 실행한다.
 
 ```powershell
-node .\.pi\extensions\context-graph\doctor.ts
+node .\.pi\extensions\context-graph\src\cli\doctor.ts
 npm test --prefix .\.pi\extensions\context-graph
 npm run check --prefix .\.pi\extensions\context-graph
 npm run test:browser-fixtures --prefix .\.pi\extensions\context-graph
 $env:EC_DOWNLOAD_NATIVE_TEST = "1"
-node --test .\.pi\extensions\context-graph\tests\download.test.ts
+node --test .\.pi\extensions\context-graph\tests\collect\download.test.ts
 Remove-Item Env:EC_DOWNLOAD_NATIVE_TEST
 ```
 
-이 패키지의 테스트와 타입 검사는 자체 개발 의존성으로 실행한다. `session-label-editor.ts`와의 통합 테스트는 저장소 루트의 `tests/`에 있다.
+테스트와 타입 검사는 공통 패키지와 이 확장의 개발 의존성을 사용한다. `session-label-editor/index.ts`와의 통합 테스트는 저장소 루트의 `tests/`에 있다.
 
 신규 FORM·LIST 조회와 페이지 분기는 모의 응답으로 검증한다. 일반 첨부 다운로드 테스트는 임시 Chrome에서 ZIP 바이트를 확인한다.
 
@@ -210,15 +213,15 @@ Remove-Item Env:EC_DOWNLOAD_NATIVE_TEST
 
 ## 구현 파일
 
-- `site-api.ts`: API 응답, Setup 위젯, 페이지, 본문·답글 완전성 확인.
-- `posts.ts`: 프로젝트·작업 정보, 첨부 게시글·파일, TP 계정 추출.
-- `html.ts`: HTML을 Markdown으로 변환. 원본 HTML은 captures에 보존.
-- `graph.ts`: 유형·번호와 작업 소속 검증, 한 작업 범위의 재귀 수집, 중복·순환 처리.
-- `workspace.ts`: 경로·프론트매터·색인·첨부·잠금·오류 복원, 저장 자료 적용·갱신의 작업 범위 유지.
-- `selection.ts`: 로컬 작업·유형·게시글 공통 선택, 세션 적용·해제, 라벨 생성.
-- `resume.ts`: `/resume` 입력 처리와 작업별 세션 선택·재개.
-- `session-links.ts`: 원본 세션의 게시글 참조 조회와 관계 색인 캐시.
-- `reader.ts`: 명령 실행, 취소와 시간 제한. `context-cli.ts`: 독립 CLI.
+- `src/collect/site-api.ts`: API 응답, Setup 위젯, 페이지, 본문·답글 완전성 확인.
+- `src/collect/posts.ts`: 프로젝트·작업 정보, 첨부 게시글·파일, TP 계정 추출.
+- `src/collect/html.ts`: HTML을 Markdown으로 변환. 원본 HTML은 captures에 보존.
+- `src/collect/graph.ts`: 유형·번호와 작업 소속 검증, 한 작업 범위의 재귀 수집, 중복·순환 처리.
+- `src/workspace/workspace.ts`: 경로·프론트매터·색인·첨부·잠금·오류 복원, 저장 자료 적용·갱신의 작업 범위 유지.
+- `src/session/selection.ts`: 로컬 작업·유형·게시글 공통 선택, 세션 적용·해제, 라벨 생성.
+- `src/session/resume.ts`: `/resume` 입력 처리와 작업별 세션 선택·재개.
+- `src/session/session-links.ts`: 원본 세션의 게시글 참조 조회와 관계 색인 캐시.
+- `src/collect/reader.ts`: 명령 실행, 취소와 시간 제한. `src/cli/context-cli.ts`: 독립 CLI.
 
 공식 문서:
 
@@ -230,10 +233,10 @@ Remove-Item Env:EC_DOWNLOAD_NATIVE_TEST
 책임은 다음처럼 분리되어 있다.
 
 - Chrome DevTools MCP: 공식 도구와 `resend_network_request`. Pi 세션을 알지 못한다.
-- `extensions/browser-tools.ts`: Pi에 `resend_poc_*` 도구를 등록한다. 기존 호출 이름을 유지한다.
-- `browser-registry.ts`: Chrome 발견·생성·재사용 및 브라우저/세션 기록을 소유한다.
-- `browser-session.ts`: 공식 `--wsEndpoint`로 MCP를 실행하고 세션/브라우저별 연결을 공유한다.
-- `context-graph.ts`: 실제 Pi sessionId를 전달하고 같은 연결을 사용한다.
+- `extensions/browser-tools/index.ts`: Pi에 `resend_poc_*` 도구를 등록한다. 기존 호출 이름을 유지한다.
+- `src/browser/browser-registry.ts`: Chrome 발견·생성·재사용 및 브라우저/세션 기록을 소유한다.
+- `src/browser/browser-session.ts`: 공식 `--wsEndpoint`로 MCP를 실행하고 세션/브라우저별 연결을 공유한다.
+- `index.ts`: 실제 Pi sessionId를 전달하고 같은 연결을 사용한다.
 
 MCP 서버에 `browser_session`, `--reuse-existing`, `--browser-session-id` 같은 커스텀 API/옵션을 보내지 않는다. `resend_poc_browser_session`은 Pi가 직접 처리하는 도구다. 기존 pi-mcp-adapter의 resend-poc 등록은 중복을 막기 위해 제거했다. 다른 adapter 서버 설정은 유지한다.
 

@@ -162,13 +162,16 @@ Conversation compression may remove original output from the model context.
 
 ## Develop and check
 
-Run these commands from `.pi/extensions/pi-vscode`:
+The Pi SDK, TypeScript, and Node.js types are installed in `.pi`.
+The extension keeps only its VS Code build dependencies.
+Run these commands in order from the project folder:
 
-```bash
-npm ci
-npm test
-npm run test:vscode
-npm run package:vscode
+```powershell
+npm --prefix .\.pi ci
+npm --prefix .\.pi\extensions\pi-vscode ci
+npm --prefix .\.pi\extensions\pi-vscode test
+npm --prefix .\.pi\extensions\pi-vscode run test:vscode
+npm --prefix .\.pi\extensions\pi-vscode run package:vscode
 ```
 
 | Command | Check or output |
@@ -198,13 +201,13 @@ See [Windows path evidence](validation/vscode-path-windows.json) for the current
 | Path | Function |
 |---|---|
 | `index.ts` | Register tools and the default console count. |
-| `pi/commands.ts` | Register `/run-and-debug` and `/stop-debug`. |
-| `pi/client.ts` | Send authenticated HTTP requests. |
-| `pi/format.ts` | Format console results. |
-| `shared/connection.ts` | Find and read the connection file. |
-| `shared/debug.ts` | Define debug requests and results. |
-| `shared/store.ts` | Store console entries. |
-| `vscode/src/extension.ts` | Start the companion. |
-| `vscode/src/debug.ts` | Start compounds and track their sessions. |
-| `vscode/src/server.ts` | Authenticate and route requests. |
-| `vscode/src/tracker.ts` | Capture debugger messages. |
+| `src/pi/commands.ts` | Register `/run-and-debug` and `/stop-debug`. |
+| `src/pi/client.ts` | Send authenticated HTTP requests. |
+| `src/pi/format.ts` | Format console results. |
+| `src/shared/connection.ts` | Find and read the connection file. |
+| `src/shared/debug.ts` | Define debug requests and results. |
+| `src/shared/store.ts` | Store console entries. |
+| `src/vscode/extension.ts` | Start the companion. |
+| `src/vscode/debug.ts` | Start compounds and track their sessions. |
+| `src/vscode/server.ts` | Authenticate and route requests. |
+| `src/vscode/tracker.ts` | Capture debugger messages. |

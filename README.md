@@ -139,13 +139,16 @@ Pi의 브라우저 관리 계층에서 Chrome의 CDP(원격 디버깅) 연결을
 | [pi-session-rag](extensions/pi-session-rag/README.md)      | Q&A 요약·BGE-M3 임베딩·MongoDB 저장·검색               |
 | [pi-vscode](extensions/pi-vscode/README.md)                | VS Code compound 디버그 실행·중지와 콘솔 로그 조회     |
 | [gco](extensions/gco/index.ts)                             | 디버거 종료 후 소스 rebase, 산출물 브랜치 정리·pull    |
-| [switch-pg-connection](extensions/switch-pg-connection.ts) | `pg_zeus` 이름을 유지하며 접속 주소 변경·reload        |
-| [session-label-editor](extensions/session-label-editor.ts) | 세션 제목·분류 편집과 입력창 표시                      |
+| [switch-pg-connection](extensions/switch-pg-connection/index.ts) | `pg_zeus` 이름을 유지하며 접속 주소 변경·reload        |
+| [session-label-editor](extensions/session-label-editor/index.ts) | 세션 제목·분류 편집과 입력창 표시                      |
 
 `context-graph`와 `time-log`는 각 폴더에 진입점·구현·의존성·테스트를 둔다.
 `context-graph`만 먼저 설치하고, 필요할 때 `time-log`를 추가할 수 있다.
 두 확장은 서로의 코드나 공통 util을 import하지 않는다. 수집 파일과 세션별 연결 정보를 읽어 연동한다.
-설치 방법은 각 확장의 README를 따른다. 루트 `tests/`에 둔 두 확장과 세션 라벨의 통합 검증은 `npm run test:extensions`로 실행한다.
+Pi SDK·TypeScript·Node 타입은 `.pi/package.json`에서 공통으로 관리한다.
+각 확장의 실행·빌드 전용 패키지는 해당 폴더의 `package.json`에 둔다.
+프로젝트 루트에서 `npm ci --prefix .\pi`를 먼저 실행한 뒤, 각 확장의 README에 따라 전용 패키지를 설치한다.
+루트 `tests/`에 둔 두 확장과 세션 라벨의 통합 검증은 `.pi`에서 `npm run test:extensions`로 실행한다.
 
 ## MCP
 
@@ -180,7 +183,7 @@ ERP 데이터 조사, 업무 컨텍스트 조회, 이관 검증, 개발 흐름 �
 ├── agents/             # 역할·도구·스킬·작업 정책
 ├── extensions/         # Pi 명령·도구·이벤트 확장
 │   ├── gco/            # 소스·산출물 브랜치 동기화
-│   ├── pi-session-rag/ # 세션 요약·검색과 batch/ 일괄 적재
+│   ├── pi-session-rag/ # 세션 요약·검색과 src/batch/ 일괄 적재
 │   ├── context-graph/  # 업무 수집·저장·브라우저 연결
 │   └── time-log/       # 선택 설치하는 시간 기록 기능
 ├── skills/             # 작업 절차와 작성 규칙

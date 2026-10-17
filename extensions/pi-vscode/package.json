@@ -14,29 +14,20 @@
   },
   "files": [
     "index.ts",
-    "pi",
-    "shared",
+    "src",
     "vscode",
     "README.md"
   ],
   "scripts": {
     "build": "node scripts/build.mjs",
     "check": "tsc --noEmit",
-    "test": "npm run check && npm run build && node --test tests/*.test.ts vscode/test/*.test.ts && node tests/pi-loader.mjs",
+    "test": "npm run check && npm run build && node --test tests/pi/*.test.ts tests/shared/*.test.ts tests/vscode/*.test.ts && node tests/pi/pi-loader.mjs",
     "test:vscode": "node scripts/test-vscode.mjs",
     "package:vscode": "node scripts/package-vscode.mjs"
   },
-  "peerDependencies": {
-    "@earendil-works/pi-ai": ">=0.87.1",
-    "@earendil-works/pi-coding-agent": ">=0.87.1"
-  },
   "devDependencies": {
-    "@earendil-works/pi-ai": "1.0.0",
-    "@earendil-works/pi-coding-agent": "1.0.0",
-    "@types/node": "22.19.19",
     "@types/vscode": "1.95.0",
     "@vscode/vsce": "4.0.0",
-    "esbuild": "0.25.12",
-    "typescript": "5.9.3"
+    "esbuild": "0.25.12"
   }
 }

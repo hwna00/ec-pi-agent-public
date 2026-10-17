@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "test:extensions": "node --test tests/*.test.ts",
-    "test:gco": "node --test extensions/gco/gco-branches.test.mjs",
+    "test:gco": "node --test extensions/gco/tests/gco-branches.test.mjs",
     "publish:public:check": "node skills/publish-public/scripts/publish-public.ts --check",
     "publish:public": "node skills/publish-public/scripts/publish-public.ts --push"
   },

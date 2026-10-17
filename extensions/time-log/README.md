@@ -9,7 +9,14 @@
 ## 설치
 
 ContextGraph를 먼저 설치하고 `time-log` 폴더를 `<프로젝트>/.pi/extensions/time-log`에 추가한다.
-이 폴더에서 `npm ci`를 실행한다. Pi의 디렉터리 확장 탐색은 `index.ts`를 읽는다.
+공통 Pi SDK·TypeScript·Node 타입은 `.pi/package.json`에서 관리한다. 프로젝트 폴더의 PowerShell에서 공통 패키지를 먼저 설치한 뒤, 이 확장의 `puppeteer-core`를 설치한다.
+
+```powershell
+npm ci --prefix .\.pi
+npm ci --prefix .\.pi\extensions\time-log
+```
+
+Pi의 디렉터리 확장 탐색은 `index.ts`를 읽는다.
 별도 경로 등록 시 `.pi/settings.json`의 extensions에 `./extensions/time-log/index.ts`를 지정한다.
 
 ContextGraph 소스나 공용 util을 import하지 않는다. 저장된 `.context` JSON과
@@ -192,7 +199,7 @@ CreateBoardAction과 SlipDefaultValueAttrProgram 소스는 신규 저장 시 서
 알림 수신자와 기존 보류 SID는 신규 입력에 추가하지 않는다.
 신규 payload의 상세 분류·일자·비고·연결 필드는 현재 세션 자료와 지정한 날짜를 사용하며 시간은 공란이다.
 
-신규 필드 구성은 `payload.ts`, 기존 글 조회와 병합은 `upsert.ts`를 기준으로 한다.
+신규 필드 구성은 `src/erp/payload.ts`, 기존 글 조회와 병합은 `src/erp/upsert.ts`를 기준으로 한다.
 
 ## 세션 정보 복원
 
@@ -302,11 +309,11 @@ ContextGraph에 연결된 5.0 또는 5.6 ERP 화면의 현재 호스트에서 �
 다음 명령은 실제 네트워크와 하위 프로세스 실행을 차단한다.
 브라우저는 주입한 모의 객체만 사용하고, 생성한 전송 스크립트는 격리된 VM의 모의 fetch로 검사한다.
 
-```text
-cd .pi/extensions/time-log
-npm ci
-npm test
-npm run check
+설치 절차를 마친 뒤 프로젝트 폴더의 PowerShell에서 실행한다.
+
+```powershell
+npm test --prefix .\.pi\extensions\time-log
+npm run check --prefix .\.pi\extensions\time-log
 ```
 
 오프라인 테스트와 TypeScript 검사로 날짜 필터, 원본 연결, 프리뷰 승인과 모의 전송을 검사한다.

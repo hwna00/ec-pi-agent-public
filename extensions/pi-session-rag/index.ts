@@ -8,9 +8,9 @@ import {
   snapshot, summarize, renderMarkdown, SUMMARY_TOOL_NAME, RunMetrics, metricsSummary,
   outputPath, metricsPath, uploadMetricsPath, saveNewFile, saveNewJson,
   type Snapshot, type Request, type RunStatus, type UploadMetricsRecord,
-} from "./summary.ts";
-import { loadCloudflareConfig, prepareEmbedding, generateEmbedding, embedQuery } from "./embedding.ts";
-import { loadMongoConfig, uploadEmbedding, searchChunks, ensureSearchIndexes, type SearchResult } from "./db.ts";
+} from "./src/summary.ts";
+import { loadCloudflareConfig, prepareEmbedding, generateEmbedding, embedQuery } from "./src/embedding.ts";
+import { loadMongoConfig, uploadEmbedding, searchChunks, ensureSearchIndexes, type SearchResult } from "./src/db.ts";
 
 type Outcome<T> = { value: T } | { error: unknown } | null;
 type Notification = { text: string; level: "info" | "error" };

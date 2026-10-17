@@ -1,29 +1,29 @@
 import { join } from "node:path";
 import { Type } from "@earendil-works/pi-ai";
 import { defineTool, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { readJSON, piRoot } from "./state.ts";
+import { readJSON, piRoot } from "./src/state.ts";
 import {
   buildTimeLogPreview,
   createTimeLogPreviewComponent,
   confirmTimeLogPreview,
-} from "./preview.ts";
+} from "./src/draft/preview.ts";
 import {
   collectTimeLogSessions,
   validateTimeLogSessionSources,
-} from "./sessions.ts";
+} from "./src/sessions/sessions.ts";
 import {
   buildTimeLogPayload,
   defaultProfile,
   normalizeTimeLogDate,
   type TimeLogPayload,
   type TimeLogProfile,
-} from "./payload.ts";
+} from "./src/erp/payload.ts";
 import {
   summarizeTimeLogCollection,
   resolvedRemarksModel,
   REMARKS_POLICY_VERSION,
   type RemarksModelConfig,
-} from "./summarize.ts";
+} from "./src/draft/summarize.ts";
 import {
   claimDraft,
   draftPath,
@@ -35,8 +35,8 @@ import {
   saveDraft,
   type DraftStatus,
   type TimeLogDraft,
-} from "./drafts.ts";
-import type { TimeLogSavePlan } from "./transport.ts";
+} from "./src/draft/drafts.ts";
+import type { TimeLogSavePlan } from "./src/erp/transport.ts";
 
 const ENTRY = "time-log-draft";
 const TARGET_MODE = "context-graph";
@@ -96,13 +96,13 @@ export default function timeLog(
   const inspect =
     services.inspect ||
     (async (input) => {
-      const { inspectTimeLogDraft } = await import("./transport.ts");
+      const { inspectTimeLogDraft } = await import("./src/erp/transport.ts");
       return inspectTimeLogDraft(input);
     });
   const submit =
     services.submit ||
     (async (input) => {
-      const { sendTimeLogDraft } = await import("./transport.ts");
+      const { sendTimeLogDraft } = await import("./src/erp/transport.ts");
       return sendTimeLogDraft(input);
     });
   let busy = false;
@@ -404,7 +404,7 @@ export default function timeLog(
           const path = saveResponseDiagnostics(
             root,
             checked,
-            error.diagnostics as import("./transport.ts").TimeLogResponseDiagnostics,
+            error.diagnostics as import("./src/erp/transport.ts").TimeLogResponseDiagnostics,
           );
           diagnosticNotice = `\n응답 진단: ${path}`;
         } catch {

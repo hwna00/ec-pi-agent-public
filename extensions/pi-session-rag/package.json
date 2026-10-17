@@ -14,15 +14,8 @@
   },
   "scripts": {
     "test": "node --experimental-strip-types --import ./tests/register-mock.mjs --test tests/*.test.ts",
-    "test:batch": "node --test batch/session-rag-batch.test.mjs",
+    "test:batch": "node --test tests/batch/session-rag-batch.test.mjs",
     "typecheck": "tsc --noEmit"
-  },
-  "peerDependencies": {
-    "@earendil-works/pi-coding-agent": "^1.0.0"
-  },
-  "devDependencies": {
-    "@types/node": "22.19.19",
-    "typescript": "5.8.3"
   },
   "dependencies": {
     "@huggingface/tokenizers": "0.2.0",

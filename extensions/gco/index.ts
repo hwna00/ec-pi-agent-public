@@ -3,13 +3,13 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
-import { controlDebug } from "../pi-vscode/pi/client.ts";
-import { readConnection } from "../pi-vscode/shared/connection.ts";
+import { controlDebug } from "../pi-vscode/src/pi/client.ts";
+import { readConnection } from "../pi-vscode/src/shared/connection.ts";
 
 // 확장 파일을 기준으로 프로젝트와 실행 스크립트의 위치를 찾는다.
 const EXTENSION_DIR = dirname(fileURLToPath(import.meta.url));
 const PROJECT_DIR = resolve(EXTENSION_DIR, "../../..");
-const SCRIPT_PATH = join(EXTENSION_DIR, "gco-branches.sh");
+const SCRIPT_PATH = join(EXTENSION_DIR, "src/gco-branches.sh");
 const BASH_BIN = [
 	process.env.GCO_BASH_BIN || "",
 	"C:/Program Files/Git/bin/bash.exe",
