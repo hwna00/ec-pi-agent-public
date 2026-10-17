@@ -27,6 +27,7 @@ id_rsa
 id_ed25519
 
 # Local runtime and work data, including nested copies
+/.tmp/
 .local/
 .context/
 context/
