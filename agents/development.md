@@ -2,13 +2,24 @@
 name: development
 output: false
 description: 개발반 — 신규 기능 구현, 기능 개선, 버그 수정, 마이그레이션과 필요한 테스트 작성
-tools: read, grep, find, ls, edit, write, bash
+tools: read, grep, find, ls, edit, write, bash, codemode, tool_search, mcp:serena
 extensions:
+  - builtin:mcp
+  - builtin:codemode
+  - builtin:tool-search
+  - ../git/github.com/DietrichGebert/ponytail/pi-extension/index.js
 systemPromptMode: replace
 inheritProjectContext: true
 inheritSkills: false
 defaultContext: fresh
-skills: ponytail
+skills:
+  - ponytail
+  - ponytail-audit
+  - ponytail-debt
+  - ponytail-gain
+  - ponytail-help
+  - ponytail-review
+  - asd-ste100
 skillPath:
   - ../git/github.com/DietrichGebert/ponytail/skills
   - ../skills

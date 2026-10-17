@@ -233,7 +233,7 @@ Remove-Item Env:EC_DOWNLOAD_NATIVE_TEST
 책임은 다음처럼 분리되어 있다.
 
 - Chrome DevTools MCP: 공식 도구와 `resend_network_request`. Pi 세션을 알지 못한다.
-- `extensions/browser-tools/index.ts`: Pi에 `resend_poc_*` 도구를 등록한다. 기존 호출 이름을 유지한다.
+- `src/browser/pi-browser-tools.ts`: 현장 조사반이 직접 로드하여 Pi에 `resend_poc_*` 도구를 등록한다. 기존 호출 이름을 유지한다.
 - `src/browser/browser-registry.ts`: Chrome 발견·생성·재사용 및 브라우저/세션 기록을 소유한다.
 - `src/browser/browser-session.ts`: 공식 `--wsEndpoint`로 MCP를 실행하고 세션/브라우저별 연결을 공유한다.
 - `index.ts`: 실제 Pi sessionId를 전달하고 같은 연결을 사용한다.

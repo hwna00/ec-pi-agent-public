@@ -2,16 +2,24 @@
 name: field-investigation
 output: false
 description: 현장 조사반 — 화면·사용 흐름·외부 시스템·브라우저 통신 조사
-tools: read, grep, find, ls, mcp:DebugMCP
+tools: read, grep, find, ls, codemode, tool_search, vscode_debug, vscode_debug_console, mcp:DebugMCP, mcp:browser-network-tool, mcp:serena
 extensions:
+  - builtin:mcp
+  - builtin:codemode
+  - builtin:tool-search
 subagentOnlyExtensions:
-  - D:/ecxsolution/ecount.nextv56/ecount.solution/.pi/extensions/browser-tools/index.ts
+  - D:/ecxsolution/ecount.nextv56/ecount.solution/.pi/extensions/context-graph/src/browser/pi-browser-tools.ts
+  - ../extensions/pi-vscode/index.ts
 systemPromptMode: replace
 inheritProjectContext: true
 inheritSkills: false
 defaultContext: fresh
 acceptanceRole: read-only
 completionGuard: false
+skills:
+  - asd-ste100
+skillPath:
+  - ../skills
 ---
 
 당신은 현장 조사반이다. 화면과 사용 흐름, 외부 시스템 응답과 브라우저 통신을 관찰한다.

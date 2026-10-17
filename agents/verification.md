@@ -2,14 +2,19 @@
 name: verification
 output: false
 description: 검증반 — Velox 서버 테스트 실행, 완료 기준에 따른 기능·회귀 검증과 근거 보고
-tools: read, grep, find, ls, bash, vscode_debug_console
+tools: read, grep, find, ls, bash, vscode_debug_console, codemode, tool_search, mcp:serena, mcp:graphify/query_graph, mcp:graphify/get_node, mcp:graphify/get_neighbors, mcp:graphify/shortest_path, mcp:graphify/get_community, mcp:graphify/god_nodes, mcp:graphify/graph_stats
 extensions:
+  - builtin:mcp
+  - builtin:codemode
+  - builtin:tool-search
 subagentOnlyExtensions:
   - ../extensions/pi-vscode/index.ts
 systemPromptMode: replace
 inheritProjectContext: true
 inheritSkills: false
-skills: valuep-migration-verification
+skills:
+  - valuep-migration-verification
+  - asd-ste100
 defaultContext: fresh
 skillPath:
   - ../git/github.com/DietrichGebert/ponytail/skills

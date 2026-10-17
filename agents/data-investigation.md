@@ -2,9 +2,12 @@
 name: data-investigation
 output: false
 description: 데이터 조사반 — 스키마·데이터·설정 조회, 데이터 모델 검토와 SQL 초안
-tools: read, grep, find, ls, mcp:pg_zeus
+tools: read, grep, find, ls, codemode, tool_search, mcp:pg_zeus
 extensions:
   - D:/ecxsolution/ecount.nextv56/ecount.solution/.pi/extensions/switch-pg-connection/index.ts
+  - builtin:mcp
+  - builtin:codemode
+  - builtin:tool-search
 systemPromptMode: replace
 inheritProjectContext: true
 inheritSkills: false
@@ -13,6 +16,7 @@ skills:
   - query-bizz-setting
   - query-template-setting
   - query-search-item-setting
+  - asd-ste100
 skillPath: ../skills
 acceptanceRole: read-only
 completionGuard: false
