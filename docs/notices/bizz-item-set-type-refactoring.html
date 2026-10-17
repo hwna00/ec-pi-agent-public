@@ -1,0 +1,255 @@
+<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>조회/현황 리팩토링으로 인한 item_set_type 등록 위치 변경 안내</title></head><body style="margin:0;padding:0;background:#EDEEF0;font-family:Pretendard,-apple-system,BlinkMacSystemFont,'Malgun Gothic',sans-serif;color:#14161A;-webkit-font-smoothing:antialiased;"><main class="ec-report" style="max-width:1000px;margin:0 auto;background:#FFFFFF;padding:0 0 80px;box-shadow:0 0 0 1px #E1E4E8;font-family:Pretendard,-apple-system,BlinkMacSystemFont,'Malgun Gothic',sans-serif;color:#14161A;"><style>
+.ec-report pre .tk-kw { color: #0B6E4F; }
+.ec-report pre .tk-fn { color: #2B3A55; }
+.ec-report pre .tk-str { color: #1F4D3A; }
+.ec-report pre .tk-cm { color: #8A9099; }
+.ec-report pre .tk-num { color: #8A5A00; }
+.ec-report pre .tk-prop { color: #8A5A00; }
+.ec-report pre .tk-val { color: #2B3A55; }
+.ec-report td code {font-size:12px!important;}
+@media(max-width:640px){.ec-report header,.ec-report section{padding-left:24px!important;padding-right:24px!important}.ec-report footer{margin-left:24px!important;margin-right:24px!important}.ec-report h1{font-size:27px!important}}
+@media print{.ec-report{box-shadow:none!important}.ec-report pre,.ec-report tr{break-inside:avoid}body{background:#fff!important}}
+</style><header style="padding:52px 64px 30px;border-bottom:2px solid #14161A;"><span style="display:inline-block;border:1px solid #2B3A55;color:#2B3A55;font-size:11px;font-weight:700;letter-spacing:.06em;padding:4px 9px;">5.6 개발 안내</span><h1 style="margin:20px 0 24px;font-size:34px;font-weight:800;letter-spacing:-.02em;line-height:1.25;">조회/현황 리팩토링으로 인한 item_set_type 등록 위치 변경 안내</h1><table style="border-collapse:collapse;font-size:13px;line-height:1.8;"><tr><td style="padding:2px 20px 2px 0;color:#8A9099;font-family:ui-monospace,monospace;font-size:11.5px;">공유 대상</td><td>팀 내 개발자 · 내부 기술 공유 · 표준</td></tr><tr><td style="padding:2px 20px 2px 0;color:#8A9099;font-family:ui-monospace,monospace;font-size:11.5px;">관련 변경</td><td>[A26_03987] 5.6 Refactoring List &amp; Status</td></tr></table></header><section id="summary" style="padding:44px 64px 0;"><div style="font-family:ui-monospace,monospace;font-size:11px;color:#2B3A55;letter-spacing:.14em;font-weight:700;margin-bottom:14px;">결론</div><p style="margin:0 0 18px;font-size:19px;line-height:1.65;font-weight:600;letter-spacing:-.01em;">모델 매핑은 이제 각 업무의 xxx_bizz_definition.ts에서 관리합니다.<br>root 모델을 등록할 때 <span style="background:#FFF1B8;padding:1px 4px;">각 항목에 item_set_type을 지정</span>해 주시기 바랍니다.</p></section><section id="section-1" style="padding:56px 64px 0;"><h2 style="font-family:ui-monospace,monospace;font-size:13px;letter-spacing:.14em;font-weight:600;color:#8A9099;margin:0 0 8px;">01</h2><h3 style="margin:0 0 8px;font-size:24px;letter-spacing:-.02em;line-height:1.4;">변경 개요</h3>
+<p style="margin:12px 0;font-size:14.5px;line-height:1.8;color:#3A4048;">업무 기본 필드 계산에 사용하는 모델 매핑의 관리 위치가 변경되었습니다.</p>
+<p style="margin:12px 0;font-size:14.5px;line-height:1.8;color:#3A4048;">기존에는 공통 코드의 <code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">bizz_model_map</code>에서 업무 유형별 매핑을 관리했으나, 리팩터링 이후에는 <strong>각 업무의 <code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">xxx_bizz_definition.ts</code>에서 관리합니다.</strong></p>
+<p style="margin:12px 0;font-size:14.5px;line-height:1.8;color:#3A4048;">이에 따라 <code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">root_model_into_list</code>에 모델을 등록할 때 <strong>각 root 항목에 <code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">item_set_type</code>을 지정해 주시기 바랍니다.</strong></p>
+<ul style="padding-left:22px;margin:14px 0;color:#3A4048;font-size:14.5px;line-height:1.8;">
+<li style="padding:3px 0;">관련 커밋: <code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">[A26_03987] 5.6 Refactoring List &amp; Status</code></li>
+<li style="padding:3px 0;">변경 항목: root 및 부속 array 모델의 매핑 정보 관리 위치</li>
+<li style="padding:3px 0;">본 안내의 <code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">item_set_type</code>은 메뉴의 <code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">section_type</code>과 별도 정보입니다.</li>
+</ul>
+</section>
+<section id="section-2" style="padding:56px 64px 0;"><h2 style="font-family:ui-monospace,monospace;font-size:13px;letter-spacing:.14em;font-weight:600;color:#8A9099;margin:0 0 8px;">02</h2><h3 style="margin:0 0 8px;font-size:24px;letter-spacing:-.02em;line-height:1.4;">변경 전후 비교</h3>
+<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13.5px;line-height:1.7;margin:18px 0 26px;">
+<thead>
+<tr style="border-bottom:1px solid #14161A;">
+<th style="text-align:left;vertical-align:top;padding:9px 12px 9px 8px;font-weight:600;font-size:12px;color:#5A6068;">구분</th>
+<th style="text-align:left;vertical-align:top;padding:9px 12px 9px 8px;font-weight:600;font-size:12px;color:#5A6068;">변경 전</th>
+<th style="text-align:left;vertical-align:top;padding:9px 12px 9px 8px;font-weight:600;font-size:12px;color:#5A6068;">변경 후</th>
+</tr>
+</thead>
+<tbody>
+<tr style="border-bottom:1px solid #E1E4E8;">
+<td style="padding:10px 12px 10px 8px;vertical-align:top;overflow-wrap:anywhere;">관리 위치</td>
+<td style="padding:10px 12px 10px 8px;vertical-align:top;overflow-wrap:anywhere;">공통 <code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">Util.ts</code>의 <code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">bizz_model_map</code></td>
+<td style="padding:10px 12px 10px 8px;vertical-align:top;overflow-wrap:anywhere;">업무별 <code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">xxx_bizz_definition.ts</code></td>
+</tr>
+<tr style="border-bottom:1px solid #E1E4E8;">
+<td style="padding:10px 12px 10px 8px;vertical-align:top;overflow-wrap:anywhere;">관리 단위</td>
+<td style="padding:10px 12px 10px 8px;vertical-align:top;overflow-wrap:anywhere;">업무 유형(<code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">bizz_type</code>)별 매핑</td>
+<td style="padding:10px 12px 10px 8px;vertical-align:top;overflow-wrap:anywhere;">각 업무 정의의 모델 구성</td>
+</tr>
+<tr style="border-bottom:1px solid #E1E4E8;">
+<td style="padding:10px 12px 10px 8px;vertical-align:top;overflow-wrap:anywhere;">root 모델 매핑</td>
+<td style="padding:10px 12px 10px 8px;vertical-align:top;overflow-wrap:anywhere;">공통 상수에 항목세트 종류별 모델 지정</td>
+<td style="padding:10px 12px 10px 8px;vertical-align:top;overflow-wrap:anywhere;"><code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">root_model_into_list</code>의 <code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">item_set_type</code>과 <code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">source_model_id</code> 사용</td>
+</tr>
+<tr style="border-bottom:1px solid #E1E4E8;">
+<td style="padding:10px 12px 10px 8px;vertical-align:top;overflow-wrap:anywhere;">부속 array 모델 매핑</td>
+<td style="padding:10px 12px 10px 8px;vertical-align:top;overflow-wrap:anywhere;">공통 상수에 affiliation별 모델 지정</td>
+<td style="padding:10px 12px 10px 8px;vertical-align:top;overflow-wrap:anywhere;"><code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">array_model_info_list</code>의 <code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">affiliation_id</code>와 <code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">source_model_id</code> 사용</td>
+</tr>
+<tr style="border-bottom:1px solid #E1E4E8;">
+<td style="padding:10px 12px 10px 8px;vertical-align:top;overflow-wrap:anywhere;">매핑 조회</td>
+<td style="padding:10px 12px 10px 8px;vertical-align:top;overflow-wrap:anywhere;"><code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">bizz_model_map[bizz_type]</code></td>
+<td style="padding:10px 12px 10px 8px;vertical-align:top;overflow-wrap:anywhere;"><code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">resolveBizzModelMap(bizz_definition)</code></td>
+</tr>
+</tbody>
+</table></div>
+<h4 style="margin:26px 0 10px;font-size:17px;letter-spacing:-.01em;">기존 관리 위치</h4>
+<div style="padding:13px 16px;margin:14px 0;background:#F7F8FA;border-left:3px solid #2B3A55;font-family:ui-monospace,monospace;font-size:12px;line-height:1.8;overflow-wrap:anywhere;">@source/server/ecount/@infra/common/src/pmodule/global_pexecutor/Util.ts
+</div>
+<p style="margin:12px 0;font-size:14.5px;line-height:1.8;color:#3A4048;">예를 들어 Inventory 유형의 모델 매핑은 공통 상수에 다음과 같이 지정되어 있었습니다.</p>
+<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13.5px;line-height:1.7;margin:18px 0 26px;">
+<thead>
+<tr style="border-bottom:1px solid #14161A;">
+<th style="text-align:left;vertical-align:top;padding:9px 12px 9px 8px;font-weight:600;font-size:12px;color:#5A6068;">항목세트 종류</th>
+<th style="text-align:left;vertical-align:top;padding:9px 12px 9px 8px;font-weight:600;font-size:12px;color:#5A6068;">source model</th>
+</tr>
+</thead>
+<tbody>
+<tr style="border-bottom:1px solid #E1E4E8;">
+<td style="padding:10px 12px 10px 8px;vertical-align:top;overflow-wrap:anywhere;"><code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">SingleInput</code></td>
+<td style="padding:10px 12px 10px 8px;vertical-align:top;overflow-wrap:anywhere;"><code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">static∬InventoryMasterModel</code></td>
+</tr>
+<tr style="border-bottom:1px solid #E1E4E8;">
+<td style="padding:10px 12px 10px 8px;vertical-align:top;overflow-wrap:anywhere;"><code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">MultiInput</code></td>
+<td style="padding:10px 12px 10px 8px;vertical-align:top;overflow-wrap:anywhere;"><code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">static∬InventoryDetailModel</code></td>
+</tr>
+</tbody>
+</table></div>
+<h4 style="margin:26px 0 10px;font-size:17px;letter-spacing:-.01em;">변경 후 관리 위치</h4>
+<div style="padding:13px 16px;margin:14px 0;background:#F7F8FA;border-left:3px solid #2B3A55;font-family:ui-monospace,monospace;font-size:12px;line-height:1.8;overflow-wrap:anywhere;">@source/server/modules/&lt;업무 모듈&gt;/src/definition/xxx_bizz_definition.ts
+</div>
+<p style="margin:12px 0;font-size:14.5px;line-height:1.8;color:#3A4048;">이제 모델 매핑은 업무 정의에서 구성합니다. 기존 공통 <code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">bizz_model_map</code>에 항목을 추가하는 방식은 사용하지 않습니다.</p>
+</section>
+<section id="section-3" style="padding:56px 64px 0;"><h2 style="font-family:ui-monospace,monospace;font-size:13px;letter-spacing:.14em;font-weight:600;color:#8A9099;margin:0 0 8px;">03</h2><h3 style="margin:0 0 8px;font-size:24px;letter-spacing:-.02em;line-height:1.4;">적용 대상 및 사용 시점</h3>
+<h4 style="margin:26px 0 10px;font-size:17px;letter-spacing:-.01em;">업무 정의 작성·수정 시</h4>
+<p style="margin:12px 0;font-size:14.5px;line-height:1.8;color:#3A4048;">현재 <code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">IRootModelInfo</code> 타입은 <code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">item_set_type</code>을 필수 필드로 선언합니다. 신규 업무를 작성하거나 기존 업무에 root 모델을 추가하는 경우, 각 항목에 해당 모델의 역할에 맞는 값을 지정해야 합니다.</p>
+<h4 style="margin:26px 0 10px;font-size:17px;letter-spacing:-.01em;">업무 기본 필드 계산 시</h4>
+<p style="margin:12px 0;font-size:14.5px;line-height:1.8;color:#3A4048;"><code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">BizzBaseFieldPExecutor</code>의 <code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">EN_FIELD_REQUEST_TYPE.Bizz</code> 요청에서 이 매핑을 사용합니다. 대표적인 호출 경로는 다음과 같습니다.</p>
+<div style="border:1px solid #E1E4E8;padding:20px 18px 12px;margin:20px 0;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 330" width="100%" role="img" aria-label="업무 기본 필드 계산 흐름" style="display:block;font-family:ui-monospace,monospace;"><defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="#8A9099"/></marker></defs><rect x="155" y="8" width="510" height="62" fill="#F7F8FA" stroke="#C9CED6"/><text x="410" y="33" text-anchor="middle" font-size="13" font-weight="600" fill="#2B3A55">StaticModelFactory</text><text x="410" y="53" text-anchor="middle" font-size="12" fill="#5A6068">업무 기본 필드 요청</text><line x1="410" y1="70" x2="410" y2="88" stroke="#8A9099" stroke-width="1.5" marker-end="url(#arrow)"/><rect x="155" y="90" width="510" height="62" fill="#F7F8FA" stroke="#C9CED6"/><text x="410" y="115" text-anchor="middle" font-size="13" font-weight="600" fill="#2B3A55">BizzBaseFieldPExecutor</text><text x="410" y="135" text-anchor="middle" font-size="12" fill="#5A6068">EN_FIELD_REQUEST_TYPE.Bizz</text><line x1="410" y1="152" x2="410" y2="170" stroke="#8A9099" stroke-width="1.5" marker-end="url(#arrow)"/><rect x="155" y="172" width="510" height="62" fill="#F7F8FA" stroke="#C9CED6"/><text x="410" y="197" text-anchor="middle" font-size="13" font-weight="600" fill="#2B3A55">resolveBizzModelMap</text><text x="410" y="217" text-anchor="middle" font-size="12" fill="#5A6068">업무 정의에서 모델 매핑 구성</text><line x1="410" y1="234" x2="410" y2="252" stroke="#8A9099" stroke-width="1.5" marker-end="url(#arrow)"/><rect x="155" y="254" width="510" height="62" fill="#F7F8FA" stroke="#C9CED6"/><text x="410" y="279" text-anchor="middle" font-size="13" font-weight="600" fill="#2B3A55">root / array</text><text x="410" y="299" text-anchor="middle" font-size="12" fill="#5A6068">모델별 기본 필드 계산</text></svg></div>
+<p style="margin:12px 0;font-size:14.5px;line-height:1.8;color:#3A4048;">업무설정 모델 등 등록된 static 모델의 초기화 과정에서도 위 경로가 실행될 수 있으므로, <strong>값이 누락되면 화면 진입 전 Velox 시작 단계에서 오류가 발생할 수 있습니다.</strong></p>
+<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13.5px;line-height:1.7;margin:18px 0 26px;">
+<thead>
+<tr style="border-bottom:1px solid #14161A;">
+<th style="text-align:left;vertical-align:top;padding:9px 12px 9px 8px;font-weight:600;font-size:12px;color:#5A6068;">정의 상태</th>
+<th style="text-align:left;vertical-align:top;padding:9px 12px 9px 8px;font-weight:600;font-size:12px;color:#5A6068;">해당 resolver 호출 시 동작</th>
+</tr>
+</thead>
+<tbody>
+<tr style="border-bottom:1px solid #E1E4E8;">
+<td style="padding:10px 12px 10px 8px;vertical-align:top;overflow-wrap:anywhere;">업무 정의 없음</td>
+<td style="padding:10px 12px 10px 8px;vertical-align:top;overflow-wrap:anywhere;">예외 발생</td>
+</tr>
+<tr style="border-bottom:1px solid #E1E4E8;">
+<td style="padding:10px 12px 10px 8px;vertical-align:top;overflow-wrap:anywhere;">root 목록이 비어 있거나 모든 root에 <code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">item_set_type</code> 없음</td>
+<td style="padding:10px 12px 10px 8px;vertical-align:top;overflow-wrap:anywhere;">예외 발생</td>
+</tr>
+<tr style="border-bottom:1px solid #E1E4E8;">
+<td style="padding:10px 12px 10px 8px;vertical-align:top;overflow-wrap:anywhere;">일부 root에만 <code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">item_set_type</code> 없음</td>
+<td style="padding:10px 12px 10px 8px;vertical-align:top;overflow-wrap:anywhere;">값이 없는 항목을 매핑에서 제외</td>
+</tr>
+</tbody>
+</table></div>
+<p style="margin:12px 0;font-size:14.5px;line-height:1.8;color:#3A4048;">일부 항목만 누락된 경우에는 예외가 발생하지 않더라도 필요한 모델 매핑이 제외될 수 있습니다. 각 root 항목에 값을 지정해 주시기 바랍니다.</p>
+<p style="margin:12px 0;font-size:14.5px;line-height:1.8;color:#3A4048;">모든 업무가 위 실행 경로를 사용하는 것은 아닙니다. 실행 경로에 따른 오류 발생 여부와 별개로, root 항목은 타입 정의에 맞게 작성해야 합니다. 단, root 목록이 비어 있는 업무는 실제 모델 구성을 먼저 확인해야 하며, 예외를 피하기 위해 임의의 모델을 추가해서는 안 됩니다.</p>
+</section>
+<section id="section-4" style="padding:56px 64px 0;"><h2 style="font-family:ui-monospace,monospace;font-size:13px;letter-spacing:.14em;font-weight:600;color:#8A9099;margin:0 0 8px;">04</h2><h3 style="margin:0 0 8px;font-size:24px;letter-spacing:-.02em;line-height:1.4;">수정 방법</h3>
+<h4 style="margin:26px 0 10px;font-size:17px;letter-spacing:-.01em;">4.1. enum import 추가</h4>
+<p style="margin:12px 0;font-size:14.5px;line-height:1.8;color:#3A4048;">해당 업무의 <code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">xxx_bizz_definition.ts</code>에서 기존 <code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">@infra/common@</code> named import에 <code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">EN_ITEM_SET_TYPE</code>을 추가합니다.</p>
+<div style="margin:16px 0 22px;"><div style="padding:7px 14px;background:#F2F3F5;color:#8A9099;font-family:ui-monospace,monospace;font-size:11.5px;border:1px solid #E1E4E8;border-bottom:none;">xxx_bizz_definition.ts · enum import</div><pre style="margin:0;padding:16px 18px;background:#FBFCFD;border:1px solid #E1E4E8;overflow-x:auto;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;line-height:1.75;color:#14161A;">import {
+    EN_ITEM_SET_TYPE,
+    IBizzDefinition,
+    // 기존 import 유지
+} from '@infra/common@';
+</pre></div>
+<h4 style="margin:26px 0 10px;font-size:17px;letter-spacing:-.01em;">4.2. root 항목에 item_set_type 지정</h4>
+<p style="margin:12px 0;font-size:14.5px;line-height:1.8;color:#3A4048;">기존 업무 정의 객체의 <code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">root_model_into_list</code>에 값을 추가합니다. 아래는 어음 업무의 Master/Detail 설정 예시입니다.</p>
+<div style="margin:16px 0 22px;"><div style="padding:7px 14px;background:#F2F3F5;color:#8A9099;font-family:ui-monospace,monospace;font-size:11.5px;border:1px solid #E1E4E8;border-bottom:none;">xxx_bizz_definition.ts · root_model_into_list 설정</div><pre style="margin:0;padding:16px 18px;background:#FBFCFD;border:1px solid #E1E4E8;overflow-x:auto;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;line-height:1.75;color:#14161A;">root_model_into_list: [
+    {
+        source_model_id: 'static∬AccountOtherInoutMasterModel',
+        model_id: 'account_iss_noteXmaster',
+        item_set_type: EN_ITEM_SET_TYPE.SingleInput,
+    },
+    {
+        source_model_id: 'static∬AccountOtherInoutDetailModel',
+        model_id: 'account_iss_noteXdetail',
+        item_set_type: EN_ITEM_SET_TYPE.MultiInput,
+    },
+],
+</pre></div>
+<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13.5px;line-height:1.7;margin:18px 0 26px;">
+<thead>
+<tr style="border-bottom:1px solid #14161A;">
+<th style="text-align:left;vertical-align:top;padding:9px 12px 9px 8px;font-weight:600;font-size:12px;color:#5A6068;">모델 역할</th>
+<th style="text-align:left;vertical-align:top;padding:9px 12px 9px 8px;font-weight:600;font-size:12px;color:#5A6068;">설정 값</th>
+</tr>
+</thead>
+<tbody>
+<tr style="border-bottom:1px solid #E1E4E8;">
+<td style="padding:10px 12px 10px 8px;vertical-align:top;overflow-wrap:anywhere;">단일 입력</td>
+<td style="padding:10px 12px 10px 8px;vertical-align:top;overflow-wrap:anywhere;"><code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">EN_ITEM_SET_TYPE.SingleInput</code></td>
+</tr>
+<tr style="border-bottom:1px solid #E1E4E8;">
+<td style="padding:10px 12px 10px 8px;vertical-align:top;overflow-wrap:anywhere;">다중 입력</td>
+<td style="padding:10px 12px 10px 8px;vertical-align:top;overflow-wrap:anywhere;"><code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">EN_ITEM_SET_TYPE.MultiInput</code></td>
+</tr>
+<tr style="border-bottom:1px solid #E1E4E8;">
+<td style="padding:10px 12px 10px 8px;vertical-align:top;overflow-wrap:anywhere;">본문 항목세트</td>
+<td style="padding:10px 12px 10px 8px;vertical-align:top;overflow-wrap:anywhere;"><code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">EN_ITEM_SET_TYPE.Content</code></td>
+</tr>
+</tbody>
+</table></div>
+<p style="margin:12px 0;font-size:14.5px;line-height:1.8;color:#3A4048;">모델 이름이 아니라 실제 항목세트 역할을 기준으로 값을 지정합니다. 단일 입력 root만 사용하는 업무는 <code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">SingleInput</code>만 지정하면 되며, 불필요한 Detail 또는 Content 모델을 추가할 필요는 없습니다.</p>
+<h4 style="margin:26px 0 10px;font-size:17px;letter-spacing:-.01em;">4.3. 부속 array 및 메뉴 설정과의 구분</h4>
+<ul style="padding-left:22px;margin:14px 0;color:#3A4048;font-size:14.5px;line-height:1.8;">
+<li style="padding:3px 0;"><strong>부속 array 모델:</strong> 기존 <code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">array_model_info_list</code>에서 관리합니다. <code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">item_set_type</code> 추가 대상이 아니며, <code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">affiliation_id</code>, <code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">source_model_id</code>, <code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">item_set_group</code>, <code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">item_set</code>을 유지합니다.</li>
+<li style="padding:3px 0;"><strong>메뉴 섹션:</strong> <code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">menus[...].model_info_list</code>의 <code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">section_type</code>으로 관리합니다. 이번 모델 매핑 변경을 위해 메뉴의 <code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">section_type</code>을 추가할 필요는 없습니다. 메뉴 섹션은 별도 요구사항에 따라 설정합니다.</li>
+</ul>
+</section>
+<section id="section-5" style="padding:56px 64px 0;"><h2 style="font-family:ui-monospace,monospace;font-size:13px;letter-spacing:.14em;font-weight:600;color:#8A9099;margin:0 0 8px;">05</h2><h3 style="margin:0 0 8px;font-size:24px;letter-spacing:-.02em;line-height:1.4;">반영 시 유의사항</h3>
+<ol style="padding-left:22px;margin:14px 0;color:#3A4048;font-size:14.5px;line-height:1.8;">
+<li style="padding:3px 0;">해당 업무 정의의 각 root 항목에 <code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">item_set_type</code>을 지정합니다.</li>
+<li style="padding:3px 0;">소스 수정 후 프로젝트의 <code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">pnpm build</code> / <code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#F2F3F5;padding:1px 5px;overflow-wrap:anywhere;">module_build</code> 절차에 따라 해당 모듈을 빌드합니다.</li>
+<li style="padding:3px 0;">필요한 경우 Velox를 재시작하여 변경된 정의를 반영합니다.</li>
+</ol>
+<p style="margin:12px 0;font-size:14.5px;line-height:1.8;color:#3A4048;"><strong>소스만 수정하고 런타임 산출물에 반영하지 않으면 동일한 누락 오류가 계속 발생할 수 있습니다.</strong> 산출물을 직접 수정하지 않고 모듈 빌드로 반영해 주시기 바랍니다.</p>
+</section>
+<footer style="margin:64px 64px 0;padding-top:20px;border-top:1px solid #E1E4E8;display:flex;justify-content:space-between;gap:20px;font-family:ui-monospace,monospace;font-size:11px;line-height:1.7;color:#8A9099;"><span>5.6 · item_set_type 등록 위치 변경 안내</span><span>2026-10-16</span></footer></main><script>
+(function () {
+  var KW =
+    'import|from|const|let|async|function|for|of|if|continue|return|' +
+    'interface|export|new|await|Partial|Record|string|type|' +
+    'public|private|protected|override|var|else|case|switch|any|true|false|as|null';
+  var kwRe = new RegExp('\\b(' + KW + ')\\b', 'g');
+
+  function esc(s) {
+    return s
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  function highlight(src) {
+    var slots = [];
+    var text = src;
+
+    function slot(html) {
+      slots.push(html);
+      return '\x00' + (slots.length - 1) + '\x00';
+    }
+
+    // 1. 블록 주석 (/** */ · /* */) — JSDoc 포함
+    text = text.replace(/\/\*[\s\S]*?\*\//g, function (m) {
+      return slot('<span class="tk-cm">' + esc(m) + '</span>');
+    });
+    // 2. 문자열
+    text = text.replace(/('(?:\\'|[^'])*'|"(?:\\"|[^"])*")/g, function (m) {
+      return slot('<span class="tk-str">' + esc(m) + '</span>');
+    });
+    // 3. 한 줄 주석
+    text = text.replace(/(\/\/[^\n]*)/g, function (m) {
+      return slot('<span class="tk-cm">' + esc(m) + '</span>');
+    });
+
+    text = esc(text);
+    text = text.replace(kwRe, '<span class="tk-kw">$1</span>');
+    text = text.replace(
+      /\b([a-zA-Z_][\w]*)\s*(?=\()/g,
+      '<span class="tk-fn">$1</span>'
+    );
+    // 타입·클래스·상수 (PascalCase, UPPER_CASE). 뒤에 '(' 가 오면 함수이므로 제외
+    text = text.replace(
+      /\b([A-Z][A-Za-z0-9_]*)\b(?!\s*\()/g,
+      '<span class="tk-val">$1</span>'
+    );
+    text = text.replace(
+      /(\b[a-zA-Z_][\w]*)\s*\??:/g,
+      '<span class="tk-prop">$1</span>:'
+    );
+    text = text.replace(/\x00(\d+)\x00/g, function (_, i) {
+      return slots[Number(i)];
+    });
+    return text;
+  }
+
+  document
+    .querySelectorAll('.ec-report pre:not(.layer-pre)')
+    .forEach(function (pre) {
+      if (pre.dataset.highlighted) return;
+      // 텍스트 노드만 교체한다. innerHTML 통째 교체는 라인 강조 span을 날린다
+      var walker = document.createTreeWalker(pre, NodeFilter.SHOW_TEXT, null);
+      var nodes = [];
+      while (walker.nextNode()) nodes.push(walker.currentNode);
+      nodes.forEach(function (node) {
+        // 강조 라인 내부는 단색 유지
+        if (node.parentElement.closest('.hl-bad, .hl-good')) return;
+        var holder = document.createElement('span');
+        holder.innerHTML = highlight(node.nodeValue);
+        node.parentNode.replaceChild(holder, node);
+      });
+      pre.dataset.highlighted = '1';
+    });
+})();
+</script></body></html>

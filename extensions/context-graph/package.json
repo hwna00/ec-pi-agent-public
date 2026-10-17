@@ -1,0 +1,53 @@
+{
+  "name": "pi-ec-context-runtime",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/unit.test.ts tests/browser-registry.test.ts tests/context-connection.test.ts tests/workspace-extension.test.ts tests/test-server-frontmatter.test.ts tests/test-server-network.test.ts tests/test-server-network-command.test.ts tests/test-tab-tools.test.ts tests/test-tab-command.test.ts tests/download.test.ts tests/runtime.test.ts tests/site-reader.test.ts tests/attachments.test.ts tests/ecdrive.test.ts tests/ecdrive-download.test.ts tests/job-scope.test.ts tests/job-areas.test.ts tests/catalog-selection.test.ts tests/selection.test.ts tests/path-migration.test.ts tests/resume.test.ts tests/session-links.test.ts tests/only-graph.test.ts tests/only-site-reader.test.ts tests/reader-only.test.ts tests/grouping-repair.test.ts",
+    "test:browser": "node --test tests/separation-integration.test.ts",
+    "check": "tsc -p tsconfig.json",
+    "test:browser-fixtures": "node --test --test-concurrency=1 tests/test-server-browser.mjs tests/test-server-network-browser.mjs tests/test-tab-tools-browser.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.31.0",
+    "@playwright/mcp": "0.0.82",
+    "@sinclair/typebox": "0.34.41",
+    "chrome-devtools-mcp": "1.10.1",
+    "domhandler": "6.0.1",
+    "entities": "8.1.0",
+    "htmlparser2": "12.0.0",
+    "proper-lockfile": "4.1.2",
+    "puppeteer-core": "25.11.0",
+    "yaml": "2.9.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "prettier": "3.9.10",
+    "@types/proper-lockfile": "4.1.4",
+    "@earendil-works/pi-ai": "0.87.1",
+    "@earendil-works/pi-coding-agent": "0.87.1",
+    "@earendil-works/pi-tui": "0.87.1",
+    "@types/node": "22.19.19",
+    "typescript": "5.9.3"
+  },
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": ">=0.87.1",
+    "@earendil-works/pi-coding-agent": ">=0.87.1",
+    "@earendil-works/pi-tui": ">=0.87.1"
+  },
+  "files": [
+    "*.ts",
+    "tests",
+    "README.md",
+    "tsconfig.json"
+  ]
+}

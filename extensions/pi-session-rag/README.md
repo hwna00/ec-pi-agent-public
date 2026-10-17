@@ -2,6 +2,8 @@
 
 현재 Pi 대화 분기를 Q&A Markdown으로 요약하고, Cloudflare BGE-M3로 임베딩한 뒤 MongoDB에 저장하는 확장입니다. 저장한 요약은 벡터 검색과 BM25 키워드 검색을 함께 사용해 찾습니다.
 
+여러 세션을 선택해 처리하려면 [일괄 적재 도구](batch/session-rag-batch.README.md)를 사용합니다. 별도 확장 등록은 필요하지 않습니다.
+
 ## 빠른 시작
 
 Node.js **22.19 이상**, Pi **1.0의 `modelRegistry.complete` API**, Pi에서 사용 가능한 **`openai-codex/gpt-6-luna`** 모델이 필요합니다.

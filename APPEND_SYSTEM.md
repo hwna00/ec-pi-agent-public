@@ -41,11 +41,9 @@ Follow these additional rules:
 | --- | --- |
 | `gpt-6-luna` | `low`, `medium`, `high` |
 | `gpt-6.1-sol` | `low`, `medium`, `high` |
-| `gpt-6-astra` | `low`, `medium`, `high` |
 
 - `gpt-6-luna` : 일반적인 
 - `gpt-6.1-sol` : 복잡한 사고 및 구현
-- `gpt-6-astra` : 긴 추론, 최상위 사고가 필요한 업무
 
 
 

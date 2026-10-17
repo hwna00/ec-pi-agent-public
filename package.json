@@ -3,8 +3,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "publish:public:check": "node scripts/publish-public.ts --check",
-    "publish:public": "node scripts/publish-public.ts --push"
+    "test:extensions": "node --test tests/*.test.ts",
+    "test:gco": "node --test extensions/gco/gco-branches.test.mjs",
+    "publish:public:check": "node skills/publish-public/scripts/publish-public.ts --check",
+    "publish:public": "node skills/publish-public/scripts/publish-public.ts --push"
   },
   "devDependencies": {
     "@earendil-works/pi-ai": "0.87.1",

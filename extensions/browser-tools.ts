@@ -1,1 +1,1 @@
-export { default } from "../lib/ec-context/pi-browser-tools.ts";
+export { default } from "./context-graph/pi-browser-tools.ts";

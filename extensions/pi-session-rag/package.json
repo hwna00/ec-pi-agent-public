@@ -14,6 +14,7 @@
   },
   "scripts": {
     "test": "node --experimental-strip-types --import ./tests/register-mock.mjs --test tests/*.test.ts",
+    "test:batch": "node --test batch/session-rag-batch.test.mjs",
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {

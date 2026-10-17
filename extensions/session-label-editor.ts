@@ -3,13 +3,13 @@ import { isAbsolute, relative, resolve, sep } from "node:path";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type { Component, EditorTheme, TUI } from "@earendil-works/pi-tui";
-import { applyContext, chooseContext, clearContext } from "../lib/ec-context/selection.ts";
-import { installResumeMenu, resumeContext } from "../lib/ec-context/resume.ts";
-import { createContextPathReader } from "../lib/ec-context/footer.ts";
+import { applyContext, chooseContext, clearContext } from "./context-graph/selection.ts";
+import { installResumeMenu, resumeContext } from "./context-graph/resume.ts";
+import { createContextPathReader } from "./context-graph/footer.ts";
 import { stripVTControlCharacters } from "node:util";
 
 type KeybindingsManager = ConstructorParameters<typeof CustomEditor>[2];
-export type SessionCategory = "tp" | "dev" | "hub" | "dp" | "job" | "decision" | "meeting" | "default";
+export type SessionCategory = "tp" | "dev" | "hub" | "dp" | "job" | "plan" | "decision" | "meeting" | "default";
 export type SessionLabel = {
 	category: SessionCategory;
 	title: string;
@@ -19,7 +19,7 @@ export type SessionLabel = {
 	projectTitle?: string | null;
 };
 
-export const SESSION_CATEGORIES: SessionCategory[] = ["tp", "dev", "hub", "dp", "job", "decision", "meeting", "default"];
+export const SESSION_CATEGORIES: SessionCategory[] = ["tp", "dev", "hub", "dp", "job", "plan", "decision", "meeting", "default"];
 export const SESSION_LABEL_ENTRY_TYPE = "session-label";
 
 function straightBorder(width: number): string {
@@ -79,7 +79,7 @@ function isSessionCategory(value: string): value is SessionCategory {
 
 export function parseSessionName(sessionName: string): { category?: Exclude<SessionCategory, "default">; title: string } {
 	const trimmed = sessionName.trim();
-	const bracketMatch = /^\[(tp|dev|hub|dp|job|decision|meeting)\]\s+(.+)$/i.exec(trimmed);
+	const bracketMatch = /^\[(tp|dev|hub|dp|job|plan|decision|meeting)\]\s+(.+)$/i.exec(trimmed);
 	if (!bracketMatch) {
 		return { title: trimmed };
 	}
@@ -168,7 +168,7 @@ function parseRenameArgs(args: string): { category: SessionCategory; title: stri
 		return undefined;
 	}
 
-	const bracketMatch = /^\[(tp|dev|hub|dp|job|decision|meeting|default)\]\s+(.+)$/i.exec(trimmed);
+	const bracketMatch = /^\[(tp|dev|hub|dp|job|plan|decision|meeting|default)\]\s+(.+)$/i.exec(trimmed);
 	if (bracketMatch) {
 		const category = bracketMatch[1];
 		const title = bracketMatch[2];
@@ -272,7 +272,7 @@ export default function sessionLabelEditorExtension(
 			}
 
 			if (!parsed.title) {
-				ctx.ui.notify("Usage: /rename [tp|dev|hub|dp|job|decision|meeting|default] <session title>", "warning");
+				ctx.ui.notify("Usage: /rename [tp|dev|hub|dp|job|plan|decision|meeting|default] <session title>", "warning");
 				return;
 			}
 
