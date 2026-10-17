@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pi Extension 흐름도</title>
+<style>
+:root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans KR",sans-serif;color:#24292f;background:#fff;font-synthesis:none;line-height:1.55}
+*{box-sizing:border-box}body{margin:0}main{width:1120px;margin:auto}.figure{width:1120px;padding:40px;background:#fff}.steps{display:flex;align-items:stretch}.step{flex:1;min-width:0;min-height:124px;padding:18px;background:#f6f2fb;border:1.4px solid #d9cfe6;border-radius:10px}.step:nth-of-type(2){background:#f0f7f2;border-color:#cfdfd2}.step:nth-of-type(3){background:#fcf6ec;border-color:#e6d9c2}.step:nth-of-type(4){background:#eff7f8;border-color:#cbdfe2}.step.rose{background:#fbf1f4;border-color:#e6cfd8}.step h3{font-size:21px;font-weight:650;line-height:1.4;margin:0 0 9px;letter-spacing:-.025em}.step p{font-size:17px;color:#4d5661;line-height:1.6;margin:0;word-break:keep-all;overflow-wrap:break-word}.arrow{flex:0 0 28px;display:flex;align-items:center;justify-content:center;color:#747b85;font-size:24px}.step.centered{display:flex;align-items:center;justify-content:center;text-align:center}.step.centered h3{margin:0}.turn{height:48px}.turn svg{display:block;width:100%;height:48px}.turn path{fill:none;stroke:#747b85;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}
+#pi-vscode .step,#pi-session-rag .step{flex:0 0 auto;width:239px;height:132px}#pi-vscode .steps,#pi-session-rag .steps:first-child{justify-content:center}
+@media(max-width:1120px){main,.figure{width:100%}.figure{padding:24px}.steps{flex-direction:column}.arrow{flex-basis:32px;transform:rotate(90deg)}.step{min-height:0}.turn{height:32px}.turn svg{display:none}}
+</style>
+</head>
+<body><main>
+<section class="figure" id="context-graph" aria-label="context-graph 처리 흐름">
+<div class="steps">
+<article class="step"><h3>게시글 선택</h3><p>유형, 번호</p></article><span class="arrow" aria-hidden="true">→</span>
+<article class="step"><h3>게시판 API 조회</h3><p>로그인 세션 재사용<br>본문, 답글, 첨부 수집</p></article><span class="arrow" aria-hidden="true">→</span>
+<article class="step"><h3>로컬 자료 저장</h3><p>Markdown<br>관계 그래프</p></article><span class="arrow" aria-hidden="true">→</span>
+<article class="step"><h3>선택적 참조</h3><p>문서 트리 전달<br>필요한 원문 조회</p></article>
+</div>
+</section>
+<section class="figure" id="pi-vscode" aria-label="pi-vscode 처리 흐름">
+<div class="steps">
+<article class="step"><h3>Pi 도구 호출</h3><p>디버그 제어<br>콘솔 조회</p></article><span class="arrow" aria-hidden="true">↔</span>
+<article class="step"><h3>HTTP 브리지</h3><p>로컬 주소 연결<br>토큰 인증</p></article><span class="arrow" aria-hidden="true">↔</span>
+<article class="step"><h3>VS Code Extension</h3><p>디버거 실행, 중지<br>DAP 출력 수집</p></article>
+</div>
+</section>
+<section class="figure" id="pi-session-rag" aria-label="pi-session-rag 저장과 검색 흐름">
+<div class="steps">
+<article class="step"><h3>세션 요약</h3><p>Pi 대화 세션 요약</p></article><span class="arrow" aria-hidden="true">→</span>
+<article class="step"><h3>BGE-M3 임베딩</h3><p>청크 분할<br>벡터 생성</p></article><span class="arrow" aria-hidden="true">→</span>
+<article class="step"><h3>MongoDB 저장</h3><p>요약, 벡터, 출처</p></article>
+</div>
+<div class="turn" aria-hidden="true"><svg viewBox="0 0 1040 48"><path d="M787 0V24H386.5V46m-4-6 4 6 4-6"/></svg></div>
+<div class="steps">
+<article class="step centered"><h3>검색 질의</h3></article><span class="arrow" aria-hidden="true">→</span>
+<article class="step"><h3>하이브리드 검색</h3><p>벡터 검색<br>BM25 키워드 검색</p></article><span class="arrow" aria-hidden="true">→</span>
+<article class="step"><h3>RRF 순위 결합</h3><p>유사도 필터<br>검색 순위 결합</p></article><span class="arrow" aria-hidden="true">→</span>
+<article class="step"><h3>요약, 출처 반환</h3><p>본문, 출처 검증<br>관련 청크 반환</p></article>
+</div>
+</section>
+<section class="figure" id="time-log" aria-label="일별 대화 요약과 업무 로그 저장 흐름">
+<div class="steps">
+<article class="step"><h3>날짜별 세션</h3><p>일별 로컬 대화</p></article><span class="arrow" aria-hidden="true">→</span>
+<article class="step"><h3>LLM 작업 요약</h3><p>대화 내용 요약</p></article><span class="arrow" aria-hidden="true">→</span>
+<article class="step"><h3>기존 로그 조회</h3><p>신규 작성,<br>수정 작성 구분</p></article><span class="arrow" aria-hidden="true">→</span>
+<article class="step"><h3>사용자 확인</h3><p>요약 미리보기 제공</p></article><span class="arrow" aria-hidden="true">→</span>
+<article class="step rose"><h3>저장</h3><p>업무 로그 저장</p></article>
+</div>
+</section>
+</main></body>
+</html>

@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Pi 연결 구조</title>
+<style>*{box-sizing:border-box}body{margin:0;background:#fff}main{max-width:1200px;margin:auto}figure{margin:0}figure>svg{display:block;width:100%;height:auto}</style>
+</head><body><main><figure aria-label="Pi 연결 구조">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800" role="img" aria-labelledby="diagram-title diagram-desc">
+<title id="diagram-title">Pi와 역할별 도구 연결 구조</title>
+<desc id="diagram-desc">Pi 위쪽의 사내 게시판과 MongoDB, 아래쪽 LangSmith 배치. Pi와 첫 번째 서브에이전트의 수평 정렬. 오른쪽 다섯 서브에이전트와 각 역할의 도구 연결.</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M1 1 9 5 1 9" fill="none" stroke="#747b85" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+<style>
+text{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans KR",sans-serif;fill:#24292f}.node{fill:#fff;stroke:#d0d5db;stroke-width:1.4}.hub{fill:#f0f5fb;stroke:#9bb0c8;stroke-width:1.8}.pi-title{fill:#365d88}.heading{font-size:19px;font-weight:600;fill:#667f9c}.title{font-size:22px;font-weight:650}.body{font-size:17px;fill:#4d5661}.detail{font-size:16px;fill:#626b76}.label{font-size:15px;fill:#626b76}.edge{fill:none;stroke:#747b85;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}.both{marker-start:url(#arrow);marker-end:url(#arrow)}
+.role-analysis .node{fill:#f6f2fb;stroke:#d9cfe6}
+.role-data .node{fill:#f0f7f2;stroke:#cfdfd2}
+.role-field .node{fill:#fcf6ec;stroke:#e6d9c2}
+.role-development .node{fill:#eff7f8;stroke:#cbdfe2}
+.role-verification .node{fill:#fbf1f4;stroke:#e6cfd8}
+</style>
+<rect width="1200" height="800" fill="#fff"/>
+<text class="heading" x="490" y="260">서브에이전트</text>
+<text class="heading" x="845" y="260">역할별 도구</text>
+<g aria-label="게시판과 세션 기억 연결">
+<path class="edge" d="M112.5 150V270" marker-end="url(#arrow)"/>
+<text class="label" x="134" y="218">context-graph</text>
+<path class="edge both" d="M282.5 150V270"/>
+<text class="detail" x="304" y="218">RAG</text>
+</g>
+<g aria-label="작업 위임과 결과 보고">
+<path class="edge" d="M360 335H420" marker-start="url(#arrow)"/>
+<path class="edge" d="M420 335V715"/>
+<text class="label" x="390" y="311" text-anchor="middle">위임</text>
+<text class="label" x="390" y="365" text-anchor="middle">보고</text>
+</g>
+<g aria-label="실행 추적 연결">
+<path class="edge both" d="M200 400V600"/>
+<text class="detail" x="222" y="505">Tracing</text>
+</g>
+<g aria-label="사내 게시판">
+<rect class="node" x="40" y="50" width="145" height="100" rx="12"/>
+<text class="title" x="112.5" y="91" text-anchor="middle">사내 게시판</text>
+<text class="body" x="112.5" y="124" text-anchor="middle">업무 자료</text>
+</g>
+<g aria-label="MongoDB">
+<rect class="node" x="205" y="50" width="155" height="100" rx="12"/>
+<text class="title" x="282.5" y="91" text-anchor="middle">MongoDB</text>
+<text class="body" x="282.5" y="124" text-anchor="middle">세션 기억</text>
+</g>
+<g aria-label="Pi 메인 에이전트">
+<rect class="hub" x="40" y="270" width="320" height="130" rx="16"/>
+<text class="pi-title" x="200" y="315" text-anchor="middle" font-size="36" font-weight="700">Pi Agent</text>
+<text class="title" x="200" y="351" text-anchor="middle">메인 에이전트</text>
+<text class="body" x="200" y="383" text-anchor="middle">목표 관리, 작업 조율</text>
+</g>
+<g aria-label="LangSmith">
+<rect class="node" x="40" y="600" width="320" height="110" rx="12"/>
+<text class="title" x="200" y="637" text-anchor="middle">LangSmith</text>
+<text class="body" x="200" y="668" text-anchor="middle">실행 추적, 스레드별 분석</text>
+<text class="detail" x="200" y="695" text-anchor="middle">MCP 조회</text>
+</g>
+<g class="role-analysis" aria-label="기술분석반 도구 연결">
+<path class="edge" d="M420 335H490" marker-end="url(#arrow)"/>
+<path class="edge both" d="M740 335H845"/>
+<rect class="node" x="490" y="295" width="250" height="80" rx="10"/>
+<text class="title" x="510" y="328">기술분석반</text>
+<text class="body" x="510" y="357">코드 분석, 구조 설계</text>
+<rect class="node" x="845" y="295" width="315" height="80" rx="10"/>
+<text class="title" x="865" y="328">Serena, Graphify</text>
+<text class="detail" x="865" y="357">코드, 의존 관계 조회</text>
+</g>
+<g class="role-data" aria-label="데이터 조사반 도구 연결">
+<path class="edge" d="M420 430H490" marker-end="url(#arrow)"/>
+<path class="edge both" d="M740 430H845"/>
+<rect class="node" x="490" y="390" width="250" height="80" rx="10"/>
+<text class="title" x="510" y="423">데이터 조사반</text>
+<text class="body" x="510" y="452">스키마, 데이터, 업무 설정</text>
+<rect class="node" x="845" y="390" width="315" height="80" rx="10"/>
+<text class="title" x="865" y="423">DB MCP</text>
+<text class="detail" x="865" y="452">DB별 조회 도구</text>
+</g>
+<g class="role-field" aria-label="현장 조사반 도구 연결">
+<path class="edge" d="M420 525H490" marker-end="url(#arrow)"/>
+<path class="edge both" d="M740 525H845"/>
+<rect class="node" x="490" y="485" width="250" height="80" rx="10"/>
+<text class="title" x="510" y="518">현장 조사반</text>
+<text class="body" x="510" y="547">화면, 네트워크 조사</text>
+<rect class="node" x="845" y="485" width="315" height="80" rx="10"/>
+<text class="title" x="865" y="518">Browser MCP, pi-vscode</text>
+<text class="detail" x="865" y="547">화면, 통신, 디버그 콘솔</text>
+</g>
+<g class="role-development" aria-label="개발반 도구 연결">
+<path class="edge" d="M420 620H490" marker-end="url(#arrow)"/>
+<path class="edge both" d="M740 620H845"/>
+<rect class="node" x="490" y="580" width="250" height="80" rx="10"/>
+<text class="title" x="510" y="613">개발반</text>
+<text class="body" x="510" y="642">기능 구현, 수정</text>
+<rect class="node" x="845" y="580" width="315" height="80" rx="10"/>
+<text class="title" x="865" y="613">파일 도구, Serena</text>
+<text class="detail" x="865" y="642">코드 편집, 명령 실행</text>
+</g>
+<g class="role-verification" aria-label="검증반 도구 연결">
+<path class="edge" d="M420 715H490" marker-end="url(#arrow)"/>
+<path class="edge both" d="M740 715H845"/>
+<rect class="node" x="490" y="675" width="250" height="80" rx="10"/>
+<text class="title" x="510" y="708">검증반</text>
+<text class="body" x="510" y="737">테스트 실행, 결과 확인</text>
+<rect class="node" x="845" y="675" width="315" height="80" rx="10"/>
+<text class="title" x="865" y="708">테스트 실행, pi-vscode</text>
+<text class="detail" x="865" y="737">Serena, Graphify 조회</text>
+</g>
+</svg>
+</figure></main></body></html>
