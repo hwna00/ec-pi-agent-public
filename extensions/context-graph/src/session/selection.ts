@@ -33,6 +33,43 @@ export interface ContextTarget {
   entryKey?: string;
 }
 
+function localJobs(stored: ContextSummary[]) {
+  return [...new Set(stored.map((p) => p.jobKey).filter(Boolean))]
+    .map((jobKey) => {
+      const job =
+        stored.find((p) => p.key === jobKey) ||
+        stored.find((p) => p.jobKey === jobKey)!;
+      return {
+        jobKey,
+        label: labelText(
+          `${job.projectCode ? `[${job.projectCode}] ` : ""}JOB ${jobKey!.slice(4)} | ${job.projectTitle || job.title}`,
+        ),
+      };
+    })
+    .sort((a, b) => a.label.localeCompare(b.label, "ko", { numeric: true }));
+}
+
+export async function chooseDPJob(
+  ctx,
+  stored: ContextSummary[],
+): Promise<string | undefined> {
+  const jobs = localJobs(
+    stored.filter((post) => post.type === "job" && post.key === post.jobKey),
+  );
+  if (!jobs.length) {
+    ctx.ui.notify(
+      "배정할 로컬 작업이 없습니다. /load-context job:번호로 작업을 먼저 수집한 후 DP를 다시 불러오세요.",
+      "warning",
+    );
+    return;
+  }
+  const selected = await ctx.ui.select(
+    "DP를 배정할 로컬 작업 (프로젝트 코드 / 제목)",
+    jobs.map((job) => job.label),
+  );
+  return jobs.find((job) => job.label === selected)?.jobKey || undefined;
+}
+
 export function readLocalContext(ctx, args: string[]): Promise<string> {
   const config = readJSON(
     process.env.ECOUNT_CONTEXT_CONFIG || join(piRoot, "ec-context.json"),
@@ -50,19 +87,7 @@ export async function chooseContextTarget(
     ctx.ui.notify("수집된 작업 또는 게시글이 없습니다.", "info");
     return;
   }
-  const jobs = [...new Set(stored.map((p) => p.jobKey).filter(Boolean))]
-    .map((jobKey) => {
-      const job =
-        stored.find((p) => p.key === jobKey) ||
-        stored.find((p) => p.jobKey === jobKey)!;
-      return {
-        jobKey,
-        label: labelText(
-          `${job.projectCode ? `[${job.projectCode}] ` : ""}JOB ${jobKey!.slice(4)} | ${job.projectTitle || job.title}`,
-        ),
-      };
-    })
-    .sort((a, b) => a.label.localeCompare(b.label, "ko", { numeric: true }));
+  const jobs = localJobs(stored);
   const selectedJob = await ctx.ui.select("작업", [
     ...(options.allowDefault ? [defaultChoice] : []),
     ...jobs.map((job) => job.label),
@@ -124,6 +149,19 @@ export function applyContext(pi, _ctx, context: ContextDescription) {
   });
   pi.setSessionName(
     `${context.projectCode ? `[${context.projectCode}] ` : ""}${context.type.toUpperCase()} ${context.number} | ${context.title}`,
+  );
+}
+
+// Session replacement invalidates the outgoing extension API. Initialize through
+// the newSession setup manager instead of capturing the outgoing pi instance.
+export function applyContextToSession(manager, context: ContextDescription) {
+  applyContext(
+    {
+      appendEntry: (type, data) => manager.appendCustomEntry(type, data),
+      setSessionName: (name) => manager.appendSessionInfo(name),
+    },
+    undefined,
+    context,
   );
 }
 

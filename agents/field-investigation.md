@@ -2,7 +2,7 @@
 name: field-investigation
 output: false
 description: 현장 조사반 — 화면·사용 흐름·외부 시스템·브라우저 통신 조사
-tools: read, grep, find, ls, codemode, tool_search, vscode_debug, vscode_debug_console, mcp:DebugMCP, mcp:browser-network-tool, mcp:serena
+tools: read, grep, find, ls, codemode, vscode_debug, vscode_debug_console, mcp:DebugMCP, mcp:serena
 extensions:
   - builtin:mcp
   - builtin:codemode

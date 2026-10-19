@@ -2,7 +2,7 @@
 name: development
 output: false
 description: 개발반 — 신규 기능 구현, 기능 개선, 버그 수정, 마이그레이션과 필요한 테스트 작성
-tools: read, grep, find, ls, edit, write, bash, codemode, tool_search, mcp:serena
+tools: read, grep, find, ls, edit, write, bash, codemode, mcp:serena
 extensions:
   - builtin:mcp
   - builtin:codemode

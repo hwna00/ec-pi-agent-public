@@ -46,6 +46,10 @@ export interface Relations {
 export interface Metadata {
   title?: string;
   job?: JobInfo | null;
+  /** Explicit local grouping for a DP post, independent of ERP ownership. */
+  localJob?: JobInfo;
+  /** Last ERP ownership observed before applying localJob. */
+  sourceJob?: JobInfo | null;
   jobWidgetStatus?: string;
   sourceUrl?: string;
   sections?: Section[];

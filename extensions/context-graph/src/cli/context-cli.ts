@@ -19,6 +19,7 @@ try {
         "migrate-paths",
         "repair-grouping",
         "apply",
+        "assign-job",
         "describe",
         "test-accounts",
         "save-test-account",

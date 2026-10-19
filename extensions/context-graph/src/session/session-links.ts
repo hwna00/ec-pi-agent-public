@@ -9,7 +9,11 @@ import { piRoot } from "../browser/transport.ts";
 import type { ContextSummary } from "../workspace/workspace.ts";
 
 type Reference = { entryKey: string; jobKey?: string | null };
-type Relations = { references: Reference[]; currentEntryKey: string | null };
+type Relations = {
+  references: Reference[];
+  currentEntryKey: string | null;
+  currentJobKey: string | null;
+};
 type CachedRelations = Relations & {
   path: string;
   size: number;
@@ -26,7 +30,27 @@ type Entry = {
 export type LinkedSession = SessionInfo & {
   references: { entryKey: string; jobKey: string | null }[];
   currentEntryKey: string | null;
+  currentJobKey: string | null;
 };
+
+// Match Pi's SessionInfo.modified for an active session whose first assistant
+// response may not have flushed its file yet. Metadata writes are not activity.
+export function sessionActivityTime(manager): number {
+  let modified = 0;
+  for (const entry of manager.getEntries?.() || []) {
+    if (
+      entry.type !== "message" ||
+      !["user", "assistant"].includes(entry.message?.role)
+    )
+      continue;
+    const timestamp =
+      typeof entry.message.timestamp === "number"
+        ? entry.message.timestamp
+        : Date.parse(entry.timestamp);
+    if (Number.isFinite(timestamp)) modified = Math.max(modified, timestamp);
+  }
+  return modified || Date.parse(manager.getHeader?.()?.timestamp) || 0;
+}
 
 function validKey(value: unknown): value is string {
   return (
@@ -48,6 +72,13 @@ function reference(entry: Entry): Reference | null {
     return { entryKey: data.entryKey, jobKey: data.jobKey };
   }
   return { entryKey: data.entryKey };
+}
+
+function selectedJob(entry?: Entry): string | null {
+  const data = entry?.data;
+  return data && validKey(data.entryKey) && validJob(data.jobKey)
+    ? data.jobKey
+    : null;
 }
 
 // Read the saved tree without opening or migrating the session file.
@@ -123,6 +154,7 @@ function parseRelations(content: string): Relations {
     return {
       references,
       currentEntryKey: reference(selected)?.entryKey || null,
+      currentJobKey: selectedJob(selected),
     };
   const label = branch.find(
     (e) =>
@@ -132,6 +164,7 @@ function parseRelations(content: string): Relations {
   return {
     references,
     currentEntryKey: label ? reference(label)?.entryKey || null : null,
+    currentJobKey: selectedJob(label),
   };
 }
 
@@ -140,15 +173,16 @@ function cachedRelations(value: unknown): value is CachedRelations {
   const item = value as CachedRelations;
   return (
     Object.keys(item).every((key) =>
-      ["path", "size", "mtimeMs", "references", "currentEntryKey"].includes(
-        key,
-      ),
+      [
+        "path", "size", "mtimeMs", "references", "currentEntryKey", "currentJobKey",
+      ].includes(key),
     ) &&
     typeof item.path === "string" &&
     Number.isFinite(item.size) &&
     item.size >= 0 &&
     Number.isFinite(item.mtimeMs) &&
     (item.currentEntryKey === null || validKey(item.currentEntryKey)) &&
+    validJob(item.currentJobKey) &&
     Array.isArray(item.references) &&
     item.references.every(
       (r) =>
@@ -180,7 +214,7 @@ export async function listLinkedSessions(
   try {
     const saved = JSON.parse(await readFile(cachePath, "utf8"));
     if (
-      saved.version === 1 &&
+      saved.version === 2 &&
       Object.keys(saved).every((key) =>
         ["version", "sessions"].includes(key),
       ) &&
@@ -251,6 +285,7 @@ export async function listLinkedSessions(
           ...session,
           references,
           currentEntryKey: relations!.currentEntryKey,
+          currentJobKey: relations!.currentJobKey,
         });
     } catch {
       signal?.throwIfAborted();
@@ -260,7 +295,7 @@ export async function listLinkedSessions(
   signal?.throwIfAborted();
   if (!validCache || JSON.stringify(cache) !== JSON.stringify(nextCache)) {
     try {
-      privateJSON(cachePath, { version: 1, sessions: nextCache });
+      privateJSON(cachePath, { version: 2, sessions: nextCache });
     } catch {
       // Resume remains usable when the optional cache cannot be saved.
     }

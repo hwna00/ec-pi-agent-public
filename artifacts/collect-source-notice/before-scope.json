@@ -1,0 +1,22 @@
+{
+  "selected": [
+    {
+      "moduleName": "v56app.@test",
+      "modulePath": "D:\\ecxsolution\\ecount.nextv56\\ecount.solution\\@source\\browser\\ecount\\@applications\\v56app\\@test"
+    }
+  ],
+  "excluded": [
+    "entry.@test",
+    "@infra/common.@test",
+    "common.@test",
+    "definition.@test",
+    "ecount_payment.@test",
+    "flow.@test",
+    "invoicing.@test",
+    "login.@test",
+    "login.second_auth.@test",
+    "projection.@test",
+    "sample.@test",
+    "search.@test"
+  ]
+}

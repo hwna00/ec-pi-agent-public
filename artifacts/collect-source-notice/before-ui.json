@@ -1,0 +1,47 @@
+{
+  "ready": true,
+  "tests": [
+    {
+      "testId": "v56app.@test$$ItemMeaningIdClassifierPExecutor$id",
+      "title": "ItemMeaningIdClassifierPExecutor",
+      "executionStatus": "idle"
+    },
+    {
+      "testId": "v56app.@test$$user action test$id",
+      "title": "user action test",
+      "executionStatus": "idle"
+    },
+    {
+      "testId": "v56app.@test$$AmtMulti executeValueFormatResolverAsync test$id",
+      "title": "AmtMulti executeValueFormatResolverAsync test",
+      "executionStatus": "idle"
+    },
+    {
+      "testId": "v56app.@test$$qty executeValueFormatResolverAsync test$id",
+      "title": "qty executeValueFormatResolverAsync test",
+      "executionStatus": "idle"
+    },
+    {
+      "testId": "v56app.@test$$Lazy Import Test (account@.predefined)$id",
+      "title": "Lazy Import Test (account@.predefined)",
+      "executionStatus": "idle"
+    },
+    {
+      "testId": "v56app.@test$$Lazy Import Test (inventory@.predefined)$id",
+      "title": "Lazy Import Test (inventory@.predefined)",
+      "executionStatus": "idle"
+    },
+    {
+      "testId": "v56app.@test$$ICollectSourceNoticePage converter parameters$id",
+      "title": "ICollectSourceNoticePage converter parameters",
+      "executionStatus": "idle"
+    },
+    {
+      "testId": "v56app.@test$$OpenCollectSourceNoticeUserAction opens the notice popup$id",
+      "title": "OpenCollectSourceNoticeUserAction opens the notice popup",
+      "executionStatus": "idle"
+    }
+  ],
+  "text": "Test Cases\nFilter:\nRun All Tests\nTotal: 8 | Running: 0 | Passed: 0 | Failed: 0\n▶\nv56app.@test\nRun\nItemMeaningIdClassifierPExecutor\nRun\nuser action test\nRun\nAmtMulti executeValueFormatResolverAsync test\nRun\nqty executeValueFormatResolverAsync test\nRun\nLazy Import Test (account@.predefined)\nRun\nLazy Import Test (inventory@.predefined)\nRun\nICollectSourceNoticePage converter parameters\nRun\nOpenCollectSourceNoticeUserAction opens the notice popup\nRun",
+  "app": true
+}

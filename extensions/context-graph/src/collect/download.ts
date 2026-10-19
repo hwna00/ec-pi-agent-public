@@ -370,7 +370,7 @@ export function attachmentSelector(
     meeting: "회의",
     decision: "방향결정",
     tp: "테스트오류수정",
-    dp: "테스트/배포",
+    dp: "dev._progress",
     hub: "개발본부 Hub",
   };
   const visible = (element) => element.getClientRects().length > 0;

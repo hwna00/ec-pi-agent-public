@@ -42,7 +42,7 @@ export const siteTypes = {
     bizz: "B_000000E074000",
     view: "M_000000E200420",
   },
-  dp: { name: "테스트/배포", bizz: "B_000000E074020", view: "M_000000E200460" },
+  dp: { name: "dev._progress", bizz: "B_000000E072038", view: "M_000000E200139" },
   meeting: { name: "회의", bizz: "B_000000E074015", view: "M_000000E200450" },
   decision: {
     name: "방향결정",
@@ -186,12 +186,12 @@ export class SiteClient {
     const erpStatus = Number.isInteger(normalized.Status)
         ? normalized.Status
         : "unknown",
-      failure = (reason: string) =>
+      failure = (reason: string, code = "read_failed") =>
         new ContextError(
           `${kind}${label ? `[${label}]` : ""}: ${reason} ` +
             `(HTTP=${status} ERP=${erpStatus}; artifact=${resolve(this.out, artifact)})`,
           undefined,
-          "read_failed",
+          code,
         );
     if (
       [401, 410].includes(normalized.Status) ||
@@ -206,6 +206,13 @@ export class SiteClient {
       throw new ContextError("Access denied", undefined, "access_denied");
     if (normalized.Status === 404)
       throw new ContextError("Resource not found", undefined, "not_found");
+    if (
+      kind === "search" &&
+      (status !== 200 || (normalized.Status ?? 200) !== 200) &&
+      normalized.Data?.name === "IVersionException" &&
+      normalized.Data?.message === "존재하지 않는 양식 입니다."
+    )
+      throw failure("template not found", "template_not_found");
     if (
       status !== 200 ||
       (normalized.Status ?? 200) !== 200 ||
@@ -375,6 +382,31 @@ export function searchPayload(
     page: { current_index: 1, row_count: 100 },
   };
 }
+function dpLocateTemplates(template: Row): Row[] {
+  const allowed: Row[] = Array.isArray(template.template_list)
+      ? template.template_list
+      : [],
+    candidates = new Map<string, Row>();
+  for (const item of allowed) {
+    const sid = item?.sid || item?.code;
+    if (typeof sid === "string" && sid.trim())
+      candidates.set(sid, { ...item, sid });
+  }
+  const current = template.current_template;
+  if (typeof current === "string" && current.trim() && !candidates.has(current))
+    candidates.set(current, { sid: current });
+  // The server derives locate targets from the chosen template, overriding
+  // searchPayload.target. Prefer its base layout over a user's Kanban layout.
+  const priority = (item: Row) =>
+    item.is_za_template === true
+      ? 0
+      : item.name === "기본"
+        ? 1
+        : item.sid === current
+          ? 2
+          : 3;
+  return [...candidates.values()].sort((a, b) => priority(a) - priority(b));
+}
 export async function collectPages(
   client: Pick<SiteClient, "post">,
   kind: "search" | "widget",
@@ -517,8 +549,15 @@ export async function readPost(
     );
   let row: Row | undefined,
     listRows: Row[] = [],
-    lastError: unknown;
-  for (const menu of menus) {
+    lastError: unknown,
+    searched = false;
+  // Status menus expose different template schemas; they cannot be used with
+  // the list search endpoint when locating an unassigned DP post.
+  const locateMenus =
+    type === "dp"
+      ? menus.filter((menu) => menu.menu_type_name === "조회")
+      : menus;
+  for (const menu of locateMenus) {
     try {
       const template = await client.post("templates", {
         bizz_sid: bizz,
@@ -527,35 +566,53 @@ export async function readPost(
         template_sub_type: "fixed",
         data_sid: "",
       });
-      const found = await collectPages(
-        client,
-        "search",
-        searchPayload(
-          bizz,
-          menu.menu_sid,
-          template.current_template || "",
-          number,
-        ),
-        "locate",
-      );
-      const parents = found.filter(
-        (x) =>
-          String(pick(x, "data_no")) === String(number) &&
-          !pick(x, "parent_record_sid") &&
-          !Number(pick(x, "record_depth_no", 0)),
-      );
-      if (parents.length > 1)
-        throw new ContextError("Multiple parent posts match the number");
-      if (parents.length) {
-        row = parents[0];
-        listRows = found;
-        break;
+      const choices =
+        type === "dp"
+          ? dpLocateTemplates(template)
+          : [{ sid: template.current_template || "", is_za_template: false }];
+      for (const choice of choices) {
+        const payload = searchPayload(bizz, menu.menu_sid, choice.sid, number);
+        payload.is_za_template = choice.is_za_template === true;
+        let found: Row[];
+        try {
+          found = await collectPages(client, "search", payload, "locate");
+        } catch (error) {
+          if (
+            type !== "dp" ||
+            !(error instanceof ContextError) ||
+            error.code !== "template_not_found"
+          )
+            throw error;
+          lastError = error;
+          continue;
+        }
+        searched = true;
+        const parents = found.filter(
+          (x) =>
+            String(pick(x, "data_no")) === String(number) &&
+            !pick(x, "parent_record_sid") &&
+            !Number(pick(x, "record_depth_no", 0)),
+        );
+        if (parents.length > 1)
+          throw new ContextError("Multiple parent posts match the number");
+        if (parents.length) {
+          if (
+            type === "dp" &&
+            (!pick(parents[0], "data_sid") || !pick(parents[0], "record_sid"))
+          )
+            throw new ParseError("Located DP parent is missing its identifiers");
+          row = parents[0];
+          listRows = found;
+          break;
+        }
       }
+      if (row) break;
     } catch (e) {
       if (
         client.signal?.aborted ||
         (e instanceof ContextError &&
-          ["auth_expired", "access_denied"].includes(e.code))
+          ["auth_expired", "access_denied"].includes(e.code)) ||
+        type === "dp"
       )
         throw e;
       lastError = e;
@@ -563,7 +620,7 @@ export async function readPost(
   }
   if (!row)
     throw (
-      lastError ||
+      (type === "dp" && searched ? undefined : lastError) ||
       new ContextError(
         "Post not found: " + type + ":" + number,
         undefined,
@@ -665,7 +722,31 @@ export async function readPost(
           Object.entries(x).filter(([k]) => w.visible_props.includes(k)),
         ),
       );
-      if (rows.length && !(jobPrefix + "data_no" in fields))
+      const emptyJobField = (value: unknown): boolean =>
+        value == null ||
+        (typeof value === "string" && !value.trim()) ||
+        (Array.isArray(value) && value.every(emptyJobField)) ||
+        (typeof value === "object" && Object.values(value).every(emptyJobField)),
+        jobFields = new Set([
+          ...w.visible_props.filter((name) => name.startsWith(jobPrefix)),
+          ...["data_no", "title_ctt", "pjt_cd", "data_sid", "record_sid"].map(
+            (name) => jobPrefix + name,
+          ),
+          "pjt$pjt$pjt_cd",
+        ]),
+        // An unassigned Dev Progress join returns its source row and omits
+        // empty joined columns, including the requested job number.
+        unassignedDP =
+          type === "dp" &&
+          w.info.bizz_sid === bizz &&
+          rows.length === 1 &&
+          pick(rows[0], "bizz_sid") === bizz &&
+          pick(rows[0], "data_sid") === context.data_sid &&
+          pick(rows[0], "record_sid") === context.record_sid &&
+          [rows[0], row].every((record) =>
+            [...jobFields].every((name) => emptyJobField(record[name])),
+          );
+      if (rows.length && !(jobPrefix + "data_no" in fields) && !unassignedDP)
         throw new ParseError(
           "Connected job widget response is missing its number field",
         );

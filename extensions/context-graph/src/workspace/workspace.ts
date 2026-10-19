@@ -202,6 +202,7 @@ interface CatalogPost {
   type: PostType;
   number: string;
   title: string;
+  localJobKey?: string;
 }
 interface Catalog {
   version: number;
@@ -417,6 +418,9 @@ export class WorkspaceStore {
         type: node.type,
         number: node.id,
         title: node.metadata.title ?? entry,
+        ...(node.type === "dp" && node.metadata.localJob?.number
+          ? { localJobKey: key({ type: "job", id: node.metadata.localJob.number }) }
+          : {}),
       };
       if (!grouped.has(root)) grouped.set(root, []);
       grouped.get(root)!.push(entry);
@@ -444,11 +448,48 @@ export class WorkspaceStore {
       (catalog.indexes ??= {})[relative(this.directory, index)] = digest(data);
     }
     for (const [entry, previous] of entries) {
-      const keys = new Set(previous.nodes.map((node) => node.key)),
-        current: Graph = {
+      const entryNode = nodes.get(entry)!,
+        localJob =
+          !previous.only && entryNode.type === "dp"
+            ? entryNode.metadata.localJob?.number
+            : undefined,
+        jobKey = localJob ? key({ type: "job", id: localJob }) : null,
+        entryOwner = previous.only ? null : nodeJobKey(entryNode, edges),
+        localMembers = entryOwner
+          ? [...nodes.values()].filter(
+              (node) =>
+                node.type === "dp" &&
+                node.metadata.localJob?.number &&
+                key({ type: "job", id: node.metadata.localJob.number }) ===
+                  entryOwner,
+            )
+          : [],
+        keys = new Set([
+          ...previous.nodes.map((node) => node.key),
+          ...localMembers.map((node) => node.key),
+          // A local choice can point outside the previously saved entry graph.
+          // Add the selected job's saved group before applying ownership scope.
+          ...(jobKey
+            ? [...nodes.values()]
+                .filter((node) => nodeJobKey(node, edges) === jobKey)
+                .map((node) => node.key)
+            : []),
+        ]);
+      if (jobKey || localMembers.length) {
+        const pending = [...keys];
+        while (pending.length) {
+          const from = pending.pop()!;
+          for (const edge of edges.filter((edge) => edge.from === from)) {
+            if (keys.has(edge.to) || !nodes.has(edge.to)) continue;
+            keys.add(edge.to);
+            pending.push(edge.to);
+          }
+        }
+      }
+      const current: Graph = {
           entryKey: entry,
           ...(previous.only ? { only: true as const } : {}),
-          nodes: previous.nodes.map((node) => nodes.get(node.key)!),
+          nodes: [...keys].map((nodeKey) => nodes.get(nodeKey)!),
           edges: previous.only
             ? previous.edges
             : edges.filter((edge) => keys.has(edge.from) && keys.has(edge.to)),
@@ -491,6 +532,44 @@ export class WorkspaceStore {
     const recovered = await recoverJobGrouping(this);
     const result = await this.migratePaths(recovered);
     return { ...result, repaired: [...recovered.keys()].sort() };
+  }
+  async assignJob(entry: string, jobKey: string) {
+    entry = key(entry);
+    jobKey = key(jobKey);
+    if (ref(entry).type !== "dp" || ref(jobKey).type !== "job")
+      throw new ContextError("Local job assignment requires a dp entry and job target");
+    const catalog = await this.catalog();
+    if (!catalog.entries[entry])
+      throw new SnapshotError("Entry is not collected; reload required", entry);
+    const node = await this.storedNode(entry, catalog),
+      job = await this.storedNode(jobKey, catalog),
+      selected = {
+        number: job.id,
+        title: job.metadata.title ?? job.metadata.job?.title ?? job.key,
+        projectCode: job.metadata.job?.projectCode ?? null,
+      },
+      previousParent = (node.metadata.workspaceEdges || []).find(
+        (edge) => edge.relation === "belongs_to",
+      );
+    if (node.metadata.sourceJob === undefined)
+      node.metadata.sourceJob = structuredClone(
+        node.metadata.job ??
+          (previousParent
+            ? { number: ref(previousParent.to).id, title: null, projectCode: null }
+            : null),
+      );
+    node.metadata.localJob = structuredClone(selected);
+    node.metadata.job = structuredClone(selected);
+    node.metadata.workspaceEdges = [
+      ...(node.metadata.workspaceEdges || []).filter(
+        (edge) => edge.relation !== "belongs_to",
+      ),
+      { from: entry, to: jobKey, relation: "belongs_to" },
+    ];
+    // Migration verifies every saved Markdown and attachment, then updates paths,
+    // contents, entry graphs and the catalog in one transaction without downloads.
+    await this.migratePaths(new Map([[entry, node]]));
+    return this.describe(entry);
   }
   async migratePaths(replacements = new Map<string, PostNode>()) {
     const catalog = await this.catalog(),
@@ -655,6 +734,15 @@ export class WorkspaceStore {
         node.metadata.manualTestAccounts = structuredClone(
           previous.manualTestAccounts,
         );
+      if (node.type === "dp" && previous?.localJob) {
+        node.metadata.sourceJob = structuredClone(
+          ["skipped", "failed"].includes(node.metadata.jobWidgetStatus || "")
+            ? previous.sourceJob ?? null
+            : node.metadata.job ?? null,
+        );
+        node.metadata.localJob = structuredClone(previous.localJob);
+        node.metadata.job = structuredClone(previous.localJob);
+      }
       // An intentionally skipped ownership widget gives no new evidence to
       // move a previously grouped post out of its known job folder.
       if (
@@ -744,6 +832,12 @@ export class WorkspaceStore {
             (edge) =>
               edge.relation !== "belongs_to" || !owner || edge.to === owner,
           );
+        if (node.type === "dp" && node.metadata.localJob?.number) {
+          for (let i = currentEdges.length - 1; i >= 0; i--)
+            if (currentEdges[i].relation === "belongs_to") currentEdges.splice(i, 1);
+          if (owner && all.has(owner))
+            currentEdges.push({ from: k, to: owner, relation: "belongs_to" });
+        }
         all.get(k)!.metadata.workspaceEdges = next.only
           ? [
               ...new Map(
@@ -1018,8 +1112,19 @@ export class WorkspaceStore {
         continue;
       const node = await this.storedNode(next, catalog);
       const owner = nodeJobKey(node);
-      if (jobKey === undefined) jobKey = owner;
-      else if (
+      if (jobKey === undefined) {
+        jobKey = owner;
+        // A job document may have been saved through another entry. Its first
+        // offline application still includes explicitly assigned local DP posts.
+        if (jobKey)
+          for (const [member, item] of Object.entries(catalog.posts)) {
+            if (item.localJobKey !== jobKey || member === entry) continue;
+            const assigned = await this.storedNode(member, catalog),
+              localJob = assigned.metadata.localJob?.number;
+            if (localJob && key({ type: "job", id: localJob }) === jobKey)
+              pending.push(member);
+          }
+      } else if (
         (owner && owner !== jobKey) ||
         (!owner && node.metadata.jobWidgetStatus === "failed")
       )
@@ -1104,7 +1209,7 @@ export class WorkspaceStore {
         회의록: "meeting_<번호>.md: 회의록",
         방향결정: "decision_<번호>.md: 방향결정 게시글",
         오류_수정:
-          "tp_<번호>.md: 테스트 오류 수정, dp_<번호>.md: 테스트/배포 게시글",
+          "tp_<번호>.md: 테스트 오류 수정, dp_<번호>.md: Dev. Progress 게시글",
         개발본부_Hub: "hub_<번호>.md: 개발본부 Hub 게시글",
         attachments:
           "게시글별로 다운로드한 첨부 원본 파일 (문서, 이미지, ZIP 등)",

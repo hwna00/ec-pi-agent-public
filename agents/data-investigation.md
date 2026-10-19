@@ -2,7 +2,7 @@
 name: data-investigation
 output: false
 description: 데이터 조사반 — 스키마·데이터·설정 조회, 데이터 모델 검토와 SQL 초안
-tools: read, grep, find, ls, codemode, tool_search, mcp:pg_zeus
+tools: read, grep, find, ls, codemode, mcp:pg_zeus
 extensions:
   - D:/ecxsolution/ecount.nextv56/ecount.solution/.pi/extensions/switch-pg-connection/index.ts
   - builtin:mcp

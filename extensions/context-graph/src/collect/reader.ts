@@ -99,6 +99,13 @@ export async function runReader(
       return JSON.stringify(await store.locked(() => store.repairGrouping()));
     if (a.command === "list-contexts")
       return JSON.stringify(await store.locked(() => store.listContexts()));
+    if (a.command === "assign-job") {
+      if (!a.entry || !a.post)
+        throw new ContextError("DP entry and local job reference required");
+      return JSON.stringify(
+        await store.locked(() => store.assignJob(a.entry!, key(a.post!))),
+      );
+    }
     if (a.command === "apply") {
       const entry = a.post ? key(a.post) : a.entry;
       if (!entry) throw new ContextError("Post reference required");

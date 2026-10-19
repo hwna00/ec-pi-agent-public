@@ -8,6 +8,7 @@ import { ContextError } from "./src/collect/graph.ts";
 import {
   contextDirectory,
   contextSelection,
+  contextSessionEntry,
   contextPrompt,
   readJSON,
   privateJSON,
@@ -32,9 +33,16 @@ import {
 } from "./src/browser/context-connection.ts";
 import {
   chooseContext,
+  chooseDPJob,
   applyContext,
+  applyContextToSession,
   clearContext,
 } from "./src/session/selection.ts";
+import {
+  listLinkedSessions,
+  sessionActivityTime,
+} from "./src/session/session-links.ts";
+import { withContextSessionCreation } from "./src/session/creation.ts";
 
 export default function contextGraph(
   pi: ExtensionAPI,
@@ -45,6 +53,7 @@ export default function contextGraph(
     TestServerNetwork,
     beginContextGraphConnection,
     markContextGraphConnection,
+    listLinkedSessions,
   },
 ) {
   let pool: any,
@@ -334,6 +343,19 @@ export default function contextGraph(
   async function collect(args: string, ctx: any) {
     const sessionId = ctx.sessionManager.getSessionId();
     const leafId = ctx.sessionManager.getLeafId?.();
+    const signal = operations.signal;
+    const isCurrent = () => {
+      try {
+        return (
+          !stopped &&
+          !signal.aborted &&
+          ctx.sessionManager.getSessionId() === sessionId &&
+          ctx.sessionManager.getLeafId?.() === leafId
+        );
+      } catch {
+        return false;
+      }
+    };
     const tokens = args.trim().split(/\s+/).filter(Boolean);
     const only = tokens[0] === "--only";
     if (only) tokens.shift();
@@ -352,7 +374,7 @@ export default function contextGraph(
       : null;
     if (!connected) return;
     ctx.ui.notify(`${entry} 및 관련 게시글 수집 중…`, "info");
-    const result = JSON.parse(
+    let result = JSON.parse(
       await readStore(
         ctx,
         [
@@ -378,17 +400,71 @@ export default function contextGraph(
         `첨부 파일 ${result.attachments.failed}개 다운로드 실패. 게시글의 첨부 상태를 확인하세요.`,
         "warning",
       );
+    if (!isCurrent()) return;
+    if (entry.startsWith("dp:")) {
+      const stored = JSON.parse(await readStore(ctx, ["list-contexts"]));
+      if (!isCurrent()) return;
+      const jobKey = await chooseDPJob(ctx, stored);
+      if (!isCurrent() || !jobKey) return;
+      result = JSON.parse(
+        await readStore(ctx, ["assign-job", jobKey, "--entry", result.entryKey]),
+      );
+      if (!isCurrent()) return;
+      ctx.ui.notify(
+        `${entry}: ${result.projectCode ? `[${result.projectCode}] ` : ""}${result.projectTitle || jobKey}에 로컬 배정 완료.`,
+        "info",
+      );
+    }
+    const sessions = await (services.listLinkedSessions || listLinkedSessions)(
+      ctx,
+      [{ ...result, key: result.entryKey }],
+      signal,
+    );
+    if (!isCurrent()) return;
+    // Historical references span other posts and branches. Only a session whose
+    // resumed branch still selects this post can be resumed automatically.
+    const requireAssignedJob = entry.startsWith("dp:");
+    const latest = sessions
+      .filter(
+        (session) => session.currentEntryKey === entry &&
+          (!requireAssignedJob || session.currentJobKey === result.jobKey),
+      )
+      .sort((a, b) => b.modified.getTime() - a.modified.getTime())[0];
+    // Include the active session even when it has not been flushed to disk.
+    // Keeping it must preserve its custom name and existing context entries.
     if (
-      ctx.sessionManager.getSessionId() !== sessionId ||
-      ctx.sessionManager.getLeafId?.() !== leafId
-    )
+      contextSelection(ctx.sessionManager) === entry &&
+      (!requireAssignedJob ||
+        contextSessionEntry(ctx.sessionManager)?.data?.jobKey === result.jobKey) &&
+      (!latest ||
+        latest.id === sessionId ||
+        sessionActivityTime(ctx.sessionManager) >= latest.modified.getTime())
+    ) {
+      ctx.ui.notify(`${entry}: 현재 연결 세션의 맥락 자료 갱신 완료.`, "info");
       return;
-    applyContext(pi, ctx, result);
-    ctx.ui.notify(`${entry}: 현재 세션에 적용 완료.`, "info");
+    }
+    if (latest) {
+      await ctx.switchSession(latest.path, {
+        withSession: async (current) => {
+          current.ui.notify(`${entry}: 가장 최근 연결 세션 재개 완료.`, "info");
+        },
+      });
+      return;
+    }
+    await withContextSessionCreation(ctx, () =>
+      ctx.newSession({
+        setup: async (manager) => {
+          applyContextToSession(manager, result);
+        },
+        withSession: async (current) => {
+          current.ui.notify(`${entry}: 새 세션에 맥락 적용 완료.`, "info");
+        },
+      }),
+    );
   }
   command(
     "load-context",
-    "관련 게시글 수집 후 적용 (--only: 상위 작업 제외, 예: --only tp:12345)",
+    "게시글 수집 후 최신 연결 세션 재개 또는 새 세션 생성 (--only: 상위 작업 제외)",
     collect,
   );
   command(

@@ -1,0 +1,158 @@
+[
+  {
+    "type": "response",
+    "data": "404 https://test.ecount.com:5001/favicon.ico"
+  },
+  {
+    "type": "console:error",
+    "data": "Failed to load resource: the server responded with a status of 404 ()"
+  },
+  {
+    "type": "pageerror",
+    "data": "TypeError: Cannot read properties of undefined (reading 'pinned')\n    at <anonymous> (https://test.ecount.com:5001/ec5/static/ecountv5/modules/ecount.browser.app/ecount.browser.app.0f9209bf.20-debug.js:21778:50)\n    at memoizedSelector (https://test.ecount.com:5001/ec5/static/ecountv5/static/bundle/bundle-v5-react.development.1287530089570618.5.20.js:57964:52)\n    at getSnapshotWithSelector (https://test.ecount.com:5001/ec5/static/ecountv5/static/bundle/bundle-v5-react.development.1287530089570618.5.20.js:58027:34)\n    at mountSyncExternalStore (https://test.ecount.com:5001/ec5/static/ecountv5/static/bundle/bundle-v5-react.development.1287530089570618.5.20.js:28882:22)\n    at useSyncExternalStore (https://test.ecount.com:5001/ec5/static/ecountv5/static/bundle/bundle-v5-react.development.1287530089570618.5.20.js:29810:16)\n    at useSyncExternalStore (https://test.ecount.com:5001/ec5/static/ecountv5/static/bundle/bundle-v5-react.development.1287530089570618.5.20.js:10399:23)\n    at useSyncExternalStoreWithSelector (https://test.ecount.com:5001/ec5/static/ecountv5/static/bundle/bundle-v5-react.development.1287530089570618.5.20.js:58048:23)\n    at useStore (https://test.ecount.com:5001/ec5/static/ecountv5/static/bundle/bundle-v5-react.development.1287530089570618.5.20.js:58083:19)\n    at useBoundStore (https://test.ecount.com:5001/ec5/static/ecountv5/static/bundle/bundle-v5-react.development.1287530089570618.5.20.js:58095:53)\n    at useStore (https://test.ecount.com:5001/ec5/static/ecountv5/modules/ecount.browser.app/ecount.browser.app.0f9209bf.20-debug.js:3670:25)"
+  },
+  {
+    "type": "pageerror",
+    "data": "TypeError: Cannot read properties of undefined (reading 'pinned')\n    at <anonymous> (https://test.ecount.com:5001/ec5/static/ecountv5/modules/ecount.browser.app/ecount.browser.app.0f9209bf.20-debug.js:21778:50)\n    at memoizedSelector (https://test.ecount.com:5001/ec5/static/ecountv5/static/bundle/bundle-v5-react.development.1287530089570618.5.20.js:57964:52)\n    at getSnapshotWithSelector (https://test.ecount.com:5001/ec5/static/ecountv5/static/bundle/bundle-v5-react.development.1287530089570618.5.20.js:58027:34)\n    at mountSyncExternalStore (https://test.ecount.com:5001/ec5/static/ecountv5/static/bundle/bundle-v5-react.development.1287530089570618.5.20.js:28882:22)\n    at useSyncExternalStore (https://test.ecount.com:5001/ec5/static/ecountv5/static/bundle/bundle-v5-react.development.1287530089570618.5.20.js:29810:16)\n    at useSyncExternalStore (https://test.ecount.com:5001/ec5/static/ecountv5/static/bundle/bundle-v5-react.development.1287530089570618.5.20.js:10399:23)\n    at useSyncExternalStoreWithSelector (https://test.ecount.com:5001/ec5/static/ecountv5/static/bundle/bundle-v5-react.development.1287530089570618.5.20.js:58048:23)\n    at useStore (https://test.ecount.com:5001/ec5/static/ecountv5/static/bundle/bundle-v5-react.development.1287530089570618.5.20.js:58083:19)\n    at useBoundStore (https://test.ecount.com:5001/ec5/static/ecountv5/static/bundle/bundle-v5-react.development.1287530089570618.5.20.js:58095:53)\n    at useStore (https://test.ecount.com:5001/ec5/static/ecountv5/modules/ecount.browser.app/ecount.browser.app.0f9209bf.20-debug.js:3670:25)"
+  },
+  {
+    "type": "console:error",
+    "data": "The above error occurred in the <WrapperFrameContainer> component:\n\n    at WrapperFrameContainer (https://test.ecount.com:5001/ec5/static/ecountv5/modules/ecount.browser.app/ecount.browser.app.0f9209bf.20-debug.js:21773:81)\n    at Router (https://test.ecount.com:5001/ec5/static/ecountv5/modules/ecount.browser.app/ecount.browser.app.0f9209bf.20-debug.js:5408:51)\n    at WrapperMain (https://test.ecount.com:5001/ec5/static/ecountv5/modules/ecount.browser.app/ecount.browser.app.0f9209bf.20-debug.js:21901:61)\n    at AppContainer (https://test.ecount.com:5001/ec5/static/ecountv5/modules/ecount.browser.app/ecount.browser.app.0f9209bf.20-debug.js:21921:17)\n    at ErrorResolver (https://test.ecount.com:5001/ec5/static/ecountv5/modules/ecount.browser.app/ecount.browser.app.0f9209bf.20-debug.js:22007:13)\n\nReact will try to recreate this component tree from scratch using the error boundary you provided, ErrorResolver."
+  },
+  {
+    "type": "console:error",
+    "data": "[[ERROR]] %s componentDidCatch TypeError: Cannot read properties of undefined (reading 'pinned')"
+  },
+  {
+    "type": "console:log",
+    "data": "파싱된 모듈 목록: [array Array]"
+  },
+  {
+    "type": "console:log",
+    "data": "모듈 로드 시도: v56app.@test -> v56app.@test"
+  },
+  {
+    "type": "console:log",
+    "data": "test case registered ItemMeaningIdClassifierPExecutor"
+  },
+  {
+    "type": "console:log",
+    "data": "test case registered user action test"
+  },
+  {
+    "type": "console:log",
+    "data": "test case registered AmtMulti executeValueFormatResolverAsync test"
+  },
+  {
+    "type": "console:log",
+    "data": "test case registered qty executeValueFormatResolverAsync test"
+  },
+  {
+    "type": "console:log",
+    "data": "test case registered Lazy Import Test (account@.predefined)"
+  },
+  {
+    "type": "console:log",
+    "data": "test case registered Lazy Import Test (inventory@.predefined)"
+  },
+  {
+    "type": "console:log",
+    "data": "test case registered ICollectSourceNoticePage converter parameters"
+  },
+  {
+    "type": "console:log",
+    "data": "test case registered OpenCollectSourceNoticeUserAction opens the notice popup"
+  },
+  {
+    "type": "console:log",
+    "data": "TestUIManager initialized successfully"
+  },
+  {
+    "type": "console:log",
+    "data": "Loaded 8 test cases"
+  },
+  {
+    "type": "console:log",
+    "data": "Test UI initialized successfully"
+  },
+  {
+    "type": "console:log",
+    "data": "Running tests: [object Object]"
+  },
+  {
+    "type": "console:log",
+    "data": "Test passed: v56app.@test$$ICollectSourceNoticePage converter parameters$id"
+  },
+  {
+    "type": "console:clear",
+    "data": "console.clear"
+  },
+  {
+    "type": "console:log",
+    "data": "TEST RESULTS"
+  },
+  {
+    "type": "console:log",
+    "data": "Total Tests: 1"
+  },
+  {
+    "type": "console:log",
+    "data": "Passed: 1"
+  },
+  {
+    "type": "console:log",
+    "data": "Failed: 0"
+  },
+  {
+    "type": "console:log",
+    "data": "Average: 0ms per test"
+  },
+  {
+    "type": "console:log",
+    "data": "\n📊 Test Details:"
+  },
+  {
+    "type": "console:log",
+    "data": "  ✅ v56app.@test$$ICollectSourceNoticePage converter parameters$id"
+  },
+  {
+    "type": "console:log",
+    "data": "Running tests: [object Object]"
+  },
+  {
+    "type": "console:log",
+    "data": "Test passed: v56app.@test$$OpenCollectSourceNoticeUserAction opens the notice popup$id"
+  },
+  {
+    "type": "console:clear",
+    "data": "console.clear"
+  },
+  {
+    "type": "console:log",
+    "data": "TEST RESULTS"
+  },
+  {
+    "type": "console:log",
+    "data": "Total Tests: 1"
+  },
+  {
+    "type": "console:log",
+    "data": "Passed: 1"
+  },
+  {
+    "type": "console:log",
+    "data": "Failed: 0"
+  },
+  {
+    "type": "console:log",
+    "data": "Average: 1ms per test"
+  },
+  {
+    "type": "console:log",
+    "data": "\n📊 Test Details:"
+  },
+  {
+    "type": "console:log",
+    "data": "  ✅ v56app.@test$$OpenCollectSourceNoticeUserAction opens the notice popup$id (1ms)"
+  }
+]

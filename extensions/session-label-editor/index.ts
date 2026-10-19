@@ -5,6 +5,7 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import type { Component, EditorTheme, TUI } from "@earendil-works/pi-tui";
 import { applyContext, chooseContext, clearContext } from "../context-graph/src/session/selection.ts";
 import { installResumeMenu, resumeContext } from "../context-graph/src/session/resume.ts";
+import { isContextSessionCreation } from "../context-graph/src/session/creation.ts";
 import { createContextPathReader } from "../context-graph/src/session/footer.ts";
 import { stripVTControlCharacters } from "node:util";
 
@@ -308,7 +309,7 @@ export default function sessionLabelEditorExtension(
 
 		const hasEntries = ctx.sessionManager.getEntries().length > 0;
 		const shouldAskName = event.reason === "new" || (event.reason === "startup" && !hasEntries && !pi.getSessionName());
-		if (ctx.hasUI && shouldAskName) {
+		if (ctx.hasUI && shouldAskName && !isContextSessionCreation(ctx)) {
 			const sessionId = ctx.sessionManager.getSessionId();
 			const leafId = ctx.sessionManager.getLeafId();
 			const isCurrent = () => ctx.sessionManager.getSessionId() === sessionId && ctx.sessionManager.getLeafId() === leafId;

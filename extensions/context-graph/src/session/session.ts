@@ -41,9 +41,26 @@ export function contextSessionEntry(manager) {
 }
 export function contextSelection(manager) {
   const entry = contextSessionEntry(manager);
-  return entry?.data?.entryKey
-    ? parseReference(entry.data.entryKey)
-    : undefined;
+  if (entry)
+    return entry.data?.entryKey
+      ? parseReference(entry.data.entryKey)
+      : undefined;
+  // The session finder also recognizes old labels with explicit post keys.
+  // Restore their context without rewriting the resumed session. Any explicit
+  // context entry above (including a clear) always takes precedence.
+  const entries = manager.getBranch?.() || manager.getEntries?.() || [];
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const label = entries[i];
+    if (label.type !== "custom" || label.customType !== "session-label")
+      continue;
+    if (label.data?.category === "default") return;
+    if (typeof label.data?.entryKey !== "string") continue;
+    try {
+      return parseReference(label.data.entryKey);
+    } catch {
+      // Invalid legacy metadata cannot restore a context.
+    }
+  }
 }
 export function contextPrompt(description, cwd = process.cwd()) {
   const labels = {
@@ -53,7 +70,7 @@ export function contextPrompt(description, cwd = process.cwd()) {
     meeting: "회의",
     decision: "방향결정",
     tp: "테스트오류수정",
-    dp: "테스트/배포",
+    dp: "Dev. Progress",
     hub: "개발본부 Hub",
   };
   const [type, number] = description.entryKey.split(":");
@@ -119,7 +136,9 @@ export function parseReference(args) {
     개발: "dev",
     테스트오류수정: "tp",
     "test progress": "tp",
-    "테스트/배포": "dp",
+    "dev progress": "dp",
+    "dev. progress": "dp",
+    "dev._progress": "dp",
     "개발본부 hub": "hub",
     방향결정: "decision",
     회의: "meeting",

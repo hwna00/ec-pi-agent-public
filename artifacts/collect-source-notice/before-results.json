@@ -1,0 +1,16 @@
+[
+  {
+    "id": "v56app.@test$$ICollectSourceNoticePage converter parameters$id",
+    "title": "ICollectSourceNoticePage converter parameters",
+    "moduleName": "v56app.@test",
+    "testId": "v56app.@test$$ICollectSourceNoticePage converter parameters$id",
+    "executionStatus": "passed"
+  },
+  {
+    "id": "v56app.@test$$OpenCollectSourceNoticeUserAction opens the notice popup$id",
+    "title": "OpenCollectSourceNoticeUserAction opens the notice popup",
+    "moduleName": "v56app.@test",
+    "testId": "v56app.@test$$OpenCollectSourceNoticeUserAction opens the notice popup$id",
+    "executionStatus": "passed"
+  }
+]

@@ -2,7 +2,7 @@
 name: technical-analysis
 output: false
 description: 기술분석반 — 기존 코드와 제약 분석, 신규 구조·화면·인터페이스 설계
-tools: read, grep, find, ls, codemode, tool_search, mcp:serena, mcp:graphify/query_graph, mcp:graphify/get_node, mcp:graphify/get_neighbors, mcp:graphify/shortest_path, mcp:graphify/get_community, mcp:graphify/god_nodes, mcp:graphify/graph_stats
+tools: read, grep, find, ls, codemode, mcp:serena, mcp:graphify/query_graph, mcp:graphify/get_node, mcp:graphify/get_neighbors, mcp:graphify/shortest_path, mcp:graphify/get_community, mcp:graphify/god_nodes, mcp:graphify/graph_stats
 extensions:
   - builtin:mcp
   - builtin:codemode
